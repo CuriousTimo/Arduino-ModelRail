@@ -1,1 +1,1 @@
-# Code for all kinds of LocoNet devices using an Arduino
+# Code for all kinds of LocoNet and DCC devices using an Arduino
