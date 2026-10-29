@@ -11,7 +11,8 @@
 // - Keyboards not listed here keep their setup.
 //
 // One line per Keyboard: first its number (0 to 15, from the switches on its back), then
-// its 16 key pairs from left to right:
+// its 16 key pairs in the order of the numbers printed on the Keyboard (1 to 8 in the top
+// row, 9 to 16 in the bottom row):
 //   a number      the turnout it switches (1 to 2048), the number you would type on the
 //                 Intellibox
 //   0             the key pair does nothing

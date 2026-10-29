@@ -38,6 +38,12 @@ arduino-cli upload --fqbn arduino:avr:nano:cpu=atmega328old -p /dev/cu.usbserial
 
 ## Setting up
 
+**The easiest way: [LocoNet 6040 Studio](https://github.com/CuriousTimo/LocoNet-6040-Studio).** A program for your computer that shows your Keyboards as they look, lets you click a key pair and choose what it does, and sends the setup to the Nano over its USB cable. It also reads the setup back from the Nano and keeps it as a file.
+
+[![LocoNet 6040 Studio](docs/loconet-6040-studio.png)](https://github.com/CuriousTimo/LocoNet-6040-Studio)
+
+The rest of this section describes the other way: typing commands on the Serial Monitor of the Arduino IDE.
+
 You set up the Keyboards from your computer, with the USB cable that is also used to load the program onto the Nano. You only need to do this once: the Nano remembers everything, also when the power is off and when a newer version of the program is loaded.
 
 If you are happy with Keyboard 0 switching turnouts 1 to 16, Keyboard 1 switching 17 to 32 and so on, there is nothing to set up at all. Step 1 and 2 are then only a check.
@@ -73,7 +79,7 @@ and the Nano looks again. A Keyboard is also found as soon as you press one of i
 
 ### Step 3: Choose what each key switches
 
-Each Keyboard has **16 key pairs**: a red key above a green key, numbered **1 to 16 from left to right**. Red switches a turnout to **thrown** (curved), green to **closed** (straight).
+Each Keyboard has **16 key pairs** in two rows of 8: a red key above a green key, with the number printed between them, **1 to 8 in the top row and 9 to 16 in the bottom row**. Red switches a turnout to **thrown** (curved), green to **closed** (straight).
 
 Without setup, each Keyboard switches 16 turnouts in a row:
 
@@ -113,7 +119,7 @@ Keyboard 2, on the bus, own assignment
   switch:    101   102   103   104   210   106     -   108   s33   110   111   112   113   114   115   116
 ```
 
-The top row is the key pair, the row below what it does:
+The `key:` line has the key pair numbers (1 to 16, as printed on the Keyboard), the `switch:` line below it what each one does:
 
 - a number: the turnout it switches (key pair 5 switches turnout 210)
 - `-`: it does nothing (key pair 7)
@@ -125,7 +131,7 @@ Instead of typing commands, you can write the whole key map down in the file **`
 
 1. Open `KeyMap.h` in the Arduino IDE (it is one of the tabs next to the program).
 2. Change `kUseKeyMap = false` to `kUseKeyMap = true`.
-3. Write one line per Keyboard: first its number, then what its 16 key pairs do, from left to right. A number is a turnout, `0` is nothing, `SENSOR(33)` shows track section 33:
+3. Write one line per Keyboard: first its number, then what its 16 key pairs do, in the order of the numbers printed on the Keyboard (1 to 8 in the top row, then 9 to 16 in the bottom row). A number is a turnout, `0` is nothing, `SENSOR(33)` shows track section 33:
 
    ```cpp
    const KeyMapLine kKeyMap[] PROGMEM = {
