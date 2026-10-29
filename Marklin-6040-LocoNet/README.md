@@ -10,10 +10,10 @@ The Keyboards stay unmodified. The earlier [Loconet_6040_PCA9685](../Loconet_604
 
 ## Hardware
 
-- **Arduino Nano LocoNet/DCC Interface v3**: the LocoNet base module with an Arduino Nano (LocoNet receive on D8, send on D7).
-- **Märklin I2C Expansion Board v1**: connects to the interface board's **EXP2** with a 10-pin ribbon cable, and to the Keyboards through their DIN 41612 side connectors (left or right). Its step-up converter makes the Keyboards' 8 V.
+- **[Arduino Nano LocoNet/DCC Interface v3](../Arduino%20LocoNet-DCC%20Interface%20v3)**: the LocoNet base module with an Arduino Nano (LocoNet receive on D8, send on D7).
+- **[Märklin I2C Expansion v1](../Marklin%20I2C%20Expansion%20v1)**: connects to the interface board's **EXP2** with a 10-pin ribbon cable, and to the Keyboards through their DIN 41612 side connectors (left or right). Its step-up converter makes the Keyboards' 8 V.
 
-Both boards are my own designs (Curious Timo, Losse Eindj.es), made in Eagle.
+Both boards are my own designs (Curious Timo, Losse Eindj.es), made in EAGLE; their folders have the design files and a description of every jumper and pin.
 
 Before switching on:
 
