@@ -727,6 +727,8 @@ void printHelp() {
   Serial.println(F("  option coil <ms>          how long a coil stays on (0: until the key is released)"));
   Serial.println(F("  version                   the firmware version"));
   Serial.println(F("  keymap                    whether KeyMap.h is used; `keymap load` loads it again"));
+  Serial.println(F("  backup                    the whole setup as commands: keep it to restore later"));
+  Serial.println(F("  keys <kb> <16 entries>    all key pairs at once: turnout, 0, or s and a sensor"));
   Serial.println(F("  reset yes                 factory settings: every keyboard automatic"));
 }
 
@@ -890,6 +892,110 @@ bool parseOnOff(const char* text, bool& on) {
   return false;
 }
 
+/// One key pair entry as `keys` and `backup` write it: a turnout number, 0 for nothing,
+/// or s and a number for a sensor.
+void printEntry(uint16_t entry) {
+  if (settings::isSensor(entry)) {
+    Serial.print('s');
+  }
+  Serial.print(settings::addressPart(entry));
+}
+
+bool parseEntry(const char* text, uint16_t& entry) {
+  if (text == nullptr) {
+    return false;
+  }
+  long value;
+  if (text[0] == 's' || text[0] == 'S') {
+    if (!parseNumber(text + 1, 1, settings::kLastSensor, value)) {
+      return false;
+    }
+    entry = settings::kSensorFlag | value;
+    return true;
+  }
+  if (!parseNumber(text, 0, settings::kLastAddress, value)) {
+    return false;
+  }
+  entry = value;
+  return true;
+}
+
+void printOnOff(const __FlashStringHelper* name, bool on) {
+  Serial.print(F("option "));
+  Serial.print(name);
+  Serial.println(on ? F(" on") : F(" off"));
+}
+
+/// Prints the whole setup as the commands that recreate it, so a copy of this text is a
+/// backup and sending it back line by line restores it. Lines with # are comments.
+void commandBackup() {
+  Serial.print(F("# Marklin-6040-LocoNet "));
+  Serial.print(kFirmwareVersion);
+  Serial.println(F(" backup"));
+  const settings::Options& options = settings::options();
+  printOnOff(F("auto"), options.autoAssign);
+  printOnOff(F("stopgo"), options.stopGo);
+  printOnOff(F("hold"), options.holdWithoutPower);
+  printOnOff(F("log"), options.log);
+  printOnOff(F("watchdog"), options.watchdog);
+  Serial.print(F("option coil "));
+  Serial.println((uint16_t)options.coilTime * settings::kCoilTimeStep);
+  for (uint8_t number = 0; number < keyboard::kKeyboards; number++) {
+    bool own = settings::hasOwnAssignment(number);
+    Serial.print(F("# keyboard "));
+    Serial.print(number);
+    Serial.print(isPresent(number) ? F(": on the bus") : F(": not found"));
+    Serial.println(own ? F(", own assignment") : F(", automatic"));
+    if (!own) {
+      Serial.print(F("clear "));
+      Serial.println(number);
+      continue;
+    }
+    Serial.print(F("keys "));
+    Serial.print(number);
+    for (uint8_t keyPair = 0; keyPair < 16; keyPair++) {
+      Serial.print(' ');
+      printEntry(addressOf(number, keyPair));
+    }
+    Serial.println();
+  }
+  Serial.println(F("# end of backup"));
+}
+
+/// `keys <kb> <16 entries>`: all key pairs of a keyboard in one line. The first entry
+/// comes in as `first`; strtok gives the rest.
+void commandKeys(char* keyboardText, char* first, char* second) {
+  uint8_t number;
+  if (!parseKeyboard(keyboardText, number)) {
+    return;
+  }
+  uint16_t entries[16];
+  char* text = first;
+  for (uint8_t keyPair = 0; keyPair < 16; keyPair++) {
+    if (keyPair == 1) {
+      text = second;
+    } else if (keyPair > 1) {
+      text = strtok(nullptr, " \t");
+    }
+    if (!parseEntry(text, entries[keyPair])) {
+      Serial.print(F("Key pair "));
+      Serial.print(keyPair + 1);
+      Serial.println(text == nullptr ? F(" is missing: `keys` needs all 16 key pairs.")
+                                     : F(": give a turnout 0 to 2048 or a sensor s1 to s4096."));
+      return;
+    }
+  }
+  if (strtok(nullptr, " \t") != nullptr) {
+    Serial.println(F("More than 16 key pairs: nothing was changed."));
+    return;
+  }
+  for (uint8_t keyPair = 0; keyPair < 16; keyPair++) {
+    settings::setAddress(number, keyPair, entries[keyPair]);
+  }
+  forgetLights(number);
+  printKeyboard(number);
+}
+
 /// `set` (turnouts, 1 to 2048) and `sensor` (sensors, 1 to 4096).
 void commandSet(bool sensor, char* keyboardText, char* keyText, char* addressText) {
   uint8_t number;
@@ -975,6 +1081,9 @@ void commandOption(char* name, char* value) {
 }
 
 void runCommand(char* line) {
+  if (line[0] == '#') {
+    return;  // a comment, as in a backup
+  }
   // Echo the command: serial monitors do not show what was typed in their output.
   Serial.print(F("> "));
   Serial.println(line);
@@ -992,6 +1101,10 @@ void runCommand(char* line) {
     printStatus();
   } else if (strcasecmp(command, "version") == 0) {
     printVersion();
+  } else if (strcasecmp(command, "backup") == 0) {
+    commandBackup();
+  } else if (strcasecmp(command, "keys") == 0) {
+    commandKeys(first, second, third);
   } else if (strcasecmp(command, "keymap") == 0) {
     if (!kUseKeyMap) {
       Serial.println(F("KeyMap.h is not used: set kUseKeyMap to true in KeyMap.h and load the program again."));
@@ -1049,7 +1162,7 @@ void runCommand(char* line) {
 /// command also runs half a second after its last character, for a Serial Monitor set
 /// to "No line ending". Capital letters work too.
 void handleTerminal() {
-  static char line[40];
+  static char line[128];
   static uint8_t length = 0;
   static uint32_t lastCharAt = 0;
   while (Serial.available()) {

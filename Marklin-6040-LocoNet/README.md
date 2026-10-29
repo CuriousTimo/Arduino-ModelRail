@@ -143,6 +143,30 @@ Instead of typing commands, you can write the whole key map down in the file **`
 
 Both ways work together. The Nano copies the file only when it has changed, so changes you make afterwards on the Serial Monitor stay until you load a changed `KeyMap.h`. Type `keymap load` to copy the file again on purpose. Keyboards that are not in the file keep their setup. If a line has a mistake, for example turnout 3000, the Nano says so at the start and that key pair does nothing.
 
+### Keeping a backup
+
+Type `backup`. The Nano writes its whole setup as a list of commands:
+
+```text
+> backup
+# Marklin-6040-LocoNet 0.1.0 backup
+option auto on
+option stopgo off
+option hold on
+option log on
+option watchdog on
+option coil 200
+# keyboard 0: on the bus, automatic
+clear 0
+...
+# keyboard 2: on the bus, own assignment
+keys 2 101 102 103 104 210 106 0 108 s33 110 111 112 113 114 115 116
+...
+# end of backup
+```
+
+Copy this text into a file and keep it. To put the setup back, for example on a new Nano, type these lines again (or let a terminal program send the file). Lines starting with `#` are only notes and are skipped. The line `keys 2 …` sets all 16 key pairs of Keyboard 2 at once: a turnout number, `0` for nothing, or `s` and a number for a track section.
+
 ### Settings
 
 Type `option` to see all settings. Most layouts never need to change them.
@@ -174,6 +198,8 @@ Type `option` to see all settings. Most layouts never need to change them.
 | `option` | All settings |
 | `version` | The program version |
 | `keymap` | Whether `KeyMap.h` is used; `keymap load` copies it again |
+| `backup` | The whole setup as commands, to keep as a backup |
+| `keys 2 101 102 0 s33 …` | All 16 key pairs of Keyboard 2 at once (as in a backup) |
 | `reset yes` | Start all over |
 
 The program's own starting values for the settings are in `Config.h`, for those who change the program itself.
