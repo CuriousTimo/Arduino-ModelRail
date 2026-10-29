@@ -26,7 +26,7 @@ Before switching on:
 1. In the Arduino IDE, install the **LocoNet** library by Alex Shepherd et al. (mrrwa) from the Library Manager. `Wire` and `EEPROM` come with the IDE.
 2. Open `Marklin-6040-LocoNet.ino`.
 3. Choose **Arduino Nano** as the board (with a clone, processor **ATmega328P (Old Bootloader)**) and upload.
-4. Open the Serial Monitor at **115200 baud** and set up the Keyboards there (below). The settings are kept in the Nano's EEPROM, so they survive a power cycle and a new upload.
+4. Set up the Keyboards from the Serial Monitor, as described under **Setting up** below.
 
 With the Arduino command line:
 
@@ -36,54 +36,122 @@ arduino-cli compile --fqbn arduino:avr:nano .
 arduino-cli upload --fqbn arduino:avr:nano:cpu=atmega328old -p /dev/cu.usbserial-XXXX .
 ```
 
-## Finding the Keyboards
+## Setting up
 
-At startup the Nano scans the bus: every Keyboard acknowledges its own I2C address, 0x10 plus its DIP switch number, where the central's answers reach it. The terminal lists the Keyboards it found, and `scan` repeats it. A Keyboard that did not answer the scan still counts as found as soon as it sends a key.
+You set up the Keyboards from your computer, with the USB cable that is also used to load the program onto the Nano. You only need to do this once: the Nano remembers everything, also when the power is off and when a newer version of the program is loaded.
+
+If you are happy with Keyboard 0 switching turnouts 1 to 16, Keyboard 1 switching 17 to 32 and so on, there is nothing to set up at all. Step 1 and 2 are then only a check.
+
+### Step 1: Talk to the Nano
+
+1. Connect the Nano to the computer with the USB cable.
+2. In the Arduino IDE, open the **Serial Monitor**: menu **Tools → Serial Monitor**.
+3. At the bottom right of the Serial Monitor, choose **115200 baud**.
+4. Press the reset button on the Nano. It greets you:
+
+   ```text
+   Märklin Keyboard 6040 on LocoNet, Marklin-6040-LocoNet 0.1.0
+   Keyboards found: 0 1
+     keyboard 0: switches 1 to 16
+     keyboard 1: switches 17 to 32
+   Type `help` for the commands.
+   ```
+
+5. You give a command by typing it in the input line of the Serial Monitor and pressing **Enter**. Every command you type is repeated in the window with a `>` in front of it, followed by the Nano's answer. Small or capital letters both work.
+
+### Step 2: Check that every Keyboard is found
+
+Every Keyboard has a number from **0 to 15**, set with the four small switches on its back. Two Keyboards must never have the same number. The number has nothing to do with where the Keyboard sits in the row.
+
+The greeting lists the Keyboards the Nano found ("Keyboards found: 0 1"). If one is missing, check its plug, its switches and the power supply, then type:
 
 ```text
-Keyboards found: 0 1 3
-  keyboard 0: switches 1 to 16
-  keyboard 1: switches 17 to 32
-  keyboard 3: switches 49 to 64
+scan
 ```
 
-## Setting up on the terminal
+and the Nano looks again. A Keyboard is also found as soon as you press one of its keys.
 
-Open the Serial Monitor (or any serial terminal) at **115200 baud**; any line ending works. Keyboards are numbered **0 to 15** as set by their DIP switches, not by their position on the bus; key pairs are **1 to 16**, left to right.
+### Step 3: Choose what each key switches
 
-Without any setup, Keyboard *n* switches LocoNet turnouts *n* × 16 + 1 to *n* × 16 + 16: Keyboard 0 switches 1 to 16, Keyboard 1 switches 17 to 32 (the `auto` option). Give a Keyboard its own assignment with `set`:
+Each Keyboard has **16 key pairs**: a red key above a green key, numbered **1 to 16 from left to right**. Red switches a turnout to **thrown** (curved), green to **closed** (straight).
+
+Without setup, each Keyboard switches 16 turnouts in a row:
+
+| Keyboard | Switches turnouts |
+| --- | --- |
+| 0 | 1 to 16 |
+| 1 | 17 to 32 |
+| 2 | 33 to 48 |
+| … | 16 more for each next Keyboard |
+| 15 | 241 to 256 |
+
+The turnout number is the one you would type on the Intellibox to switch that turnout (the turnout address, not the decoder address).
+
+To change this, type one of the commands below. **The first number is always the Keyboard, then the key pair, then the turnout.**
+
+| You want | Type |
+| --- | --- |
+| Keyboard 2 switches turnouts 101 to 116 | `set 2 all 101` |
+| Key pair 5 of Keyboard 2 switches turnout 210 | `set 2 5 210` |
+| Key pair 7 of Keyboard 2 does nothing | `set 2 7 0` |
+| Key pair 9 of Keyboard 2 shows whether track section 33 is occupied | `sensor 2 9 33` |
+| Keyboard 3 shows 16 track sections, numbers 101 to 116 | `sensor 3 all 101` |
+| Keyboard 2 goes back to the table above | `clear 2` |
+
+When you change one key pair, the other key pairs of that Keyboard keep what they had.
+
+**Track sections (occupancy):** a key pair set with `sensor` does not switch anything. Its lamps show a track occupancy detector or a track contact on LocoNet, for example one of the Intellibox's s88 modules: **red** when a train is there, **green** when the track is free.
+
+### Step 4: Check what you set
+
+Type `show` for all Keyboards, or `show 2` for Keyboard 2 only:
 
 ```text
-> set 2 all 101
+> show 2
 Keyboard 2, on the bus, own assignment
   key:         1     2     3     4     5     6     7     8     9    10    11    12    13    14    15    16
-  switch:    101   102   103   104   105   106   107   108   109   110   111   112   113   114   115   116
-> set 2 5 0
-> set 2 7 210
-> sensor 2 9 33
+  switch:    101   102   103   104   210   106     -   108   s33   110   111   112   113   114   115   116
 ```
+
+The top row is the key pair, the row below what it does:
+
+- a number: the turnout it switches (key pair 5 switches turnout 210)
+- `-`: it does nothing (key pair 7)
+- `s` and a number: it shows that track section (key pair 9 shows section 33)
+
+### Settings
+
+Type `option` to see all settings. Most layouts never need to change them.
+
+| You want | Type |
+| --- | --- |
+| Give old or heavy turnout motors more time: 0.3 s instead of 0.2 s | `option coil 300` |
+| Keys may also be sent while the track power is off | `option hold off` |
+| A quieter window: no line for every key | `option log off` |
+| The STOP and GO lines of the Märklin bus switch the LocoNet track power (only after measuring them, see "How it behaves") | `option stopgo on` |
+| Keyboards that are not set up switch nothing, instead of 16 turnouts in a row | `option auto off` |
+| Switch off the automatic restart after a fault | `option watchdog off` |
+| Start all over: every Keyboard back to the table above, all settings back to the start | `reset yes` |
+
+### All commands
 
 | Command | What it does |
 | --- | --- |
-| `help` | The commands |
-| `version` | The firmware version |
-| `status` | Track power, Keyboards on the bus and with their own assignment, lost messages, LocoNet counters |
-| `scan` | Look for Keyboards on the bus again |
-| `show` | The assignment of every Keyboard that is on the bus or has its own |
-| `show <kb>` | One Keyboard's 16 key pairs and their LocoNet addresses |
-| `set <kb> <key> <address>` | A key pair switches a LocoNet address, 1 to 2048; `0` switches nothing (the lights still follow the key) |
-| `set <kb> all <first>` | Key pairs 1 to 16 switch *first* to *first* + 15 |
-| `sensor <kb> <key> <address>` | A key pair shows LocoNet sensor 1 to 4096 instead of switching: red occupied, green free |
-| `sensor <kb> all <first>` | Key pairs 1 to 16 show sensors *first* to *first* + 15, for example a 16-section detector such as a BDL16 |
-| `clear <kb>` | The Keyboard goes back to the automatic assignment |
-| `option` | The options and their state |
-| `option <name> on\|off` | `auto` (automatic assignment), `stopgo` (Märklin STOP/GO lines to LocoNet power), `hold` (no keys while track power is off), `log` (log keys and switch commands), `watchdog` (restart the Nano if it hangs) |
-| `option coil <ms>` | How long a turnout coil stays on, 0 to 12750 ms in steps of 50 (default 200); `0` switches it off when the key is released |
-| `reset yes` | Factory settings: every Keyboard automatic, options as in `Config.h` |
+| `help` | List the commands |
+| `show` | What every Keyboard's key pairs do |
+| `show 2` | What Keyboard 2's key pairs do |
+| `set 2 5 210` | Key pair 5 of Keyboard 2 switches turnout 210 (1 to 2048; `0` for nothing) |
+| `set 2 all 101` | Keyboard 2 switches turnouts 101 to 116 |
+| `sensor 2 9 33` | Key pair 9 of Keyboard 2 shows track section 33 (1 to 4096) |
+| `sensor 3 all 101` | Keyboard 3 shows track sections 101 to 116 |
+| `clear 2` | Keyboard 2 back to the table above |
+| `scan` | Look for Keyboards again |
+| `status` | Track power, Keyboards found, and counters for troubleshooting |
+| `option` | All settings |
+| `version` | The program version |
+| `reset yes` | Start all over |
 
-The first `set` or `sensor` on a Keyboard copies the assignment it had, so its other key pairs stay as they were. `show` marks sensors with an `s`, for example `s33`. Several key pairs may switch the same turnout; all of them show its position. Red is **thrown** and green is **closed**, as on an Intellibox.
-
-`Config.h` holds the pins and the factory settings that `reset yes` returns to.
+The program's own starting values for the settings are in `Config.h`, for those who change the program itself.
 
 ## How it behaves
 

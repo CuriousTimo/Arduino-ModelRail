@@ -807,11 +807,11 @@ bool parseKeyboard(const char* text, uint8_t& number) {
 }
 
 bool parseOnOff(const char* text, bool& on) {
-  if (text != nullptr && strcmp(text, "on") == 0) {
+  if (text != nullptr && strcasecmp(text, "on") == 0) {
     on = true;
     return true;
   }
-  if (text != nullptr && strcmp(text, "off") == 0) {
+  if (text != nullptr && strcasecmp(text, "off") == 0) {
     on = false;
     return true;
   }
@@ -828,7 +828,7 @@ void commandSet(bool sensor, char* keyboardText, char* keyText, char* addressTex
   const long last = sensor ? settings::kLastSensor : settings::kLastAddress;
   const uint16_t flag = sensor ? settings::kSensorFlag : 0;
   long address;
-  if (keyText != nullptr && strcmp(keyText, "all") == 0) {
+  if (keyText != nullptr && strcasecmp(keyText, "all") == 0) {
     if (!parseNumber(addressText, 1, last - 15, address)) {
       Serial.print(F("Give the first address, 1 to "));
       Serial.print(last - 15);
@@ -861,7 +861,7 @@ void commandOption(char* name, char* value) {
     return;
   }
   settings::Options& options = settings::options();
-  if (strcmp(name, "coil") == 0) {
+  if (strcasecmp(name, "coil") == 0) {
     long ms;
     if (!parseNumber(value, 0, 255L * settings::kCoilTimeStep, ms)) {
       Serial.println(F("Give the coil time in ms, 0 to 12750, in steps of 50: `option coil 200`."));
@@ -873,15 +873,15 @@ void commandOption(char* name, char* value) {
     return;
   }
   bool* option = nullptr;
-  if (strcmp(name, "auto") == 0) {
+  if (strcasecmp(name, "auto") == 0) {
     option = &options.autoAssign;
-  } else if (strcmp(name, "stopgo") == 0) {
+  } else if (strcasecmp(name, "stopgo") == 0) {
     option = &options.stopGo;
-  } else if (strcmp(name, "hold") == 0) {
+  } else if (strcasecmp(name, "hold") == 0) {
     option = &options.holdWithoutPower;
-  } else if (strcmp(name, "log") == 0) {
+  } else if (strcasecmp(name, "log") == 0) {
     option = &options.log;
-  } else if (strcmp(name, "watchdog") == 0) {
+  } else if (strcasecmp(name, "watchdog") == 0) {
     option = &options.watchdog;
   } else {
     Serial.println(F("Options are auto, stopgo, hold, log, watchdog and coil."));
@@ -915,34 +915,34 @@ void runCommand(char* line) {
     return;
   }
   uint8_t number;
-  if (strcmp(command, "help") == 0 || strcmp(command, "?") == 0) {
+  if (strcasecmp(command, "help") == 0 || strcasecmp(command, "?") == 0) {
     printHelp();
-  } else if (strcmp(command, "status") == 0) {
+  } else if (strcasecmp(command, "status") == 0) {
     printStatus();
-  } else if (strcmp(command, "version") == 0) {
+  } else if (strcasecmp(command, "version") == 0) {
     printVersion();
-  } else if (strcmp(command, "scan") == 0) {
+  } else if (strcasecmp(command, "scan") == 0) {
     scanKeyboards();
-  } else if (strcmp(command, "show") == 0) {
+  } else if (strcasecmp(command, "show") == 0) {
     if (first == nullptr) {
       printAssignments();
     } else if (parseKeyboard(first, number)) {
       printKeyboard(number);
     }
-  } else if (strcmp(command, "set") == 0) {
+  } else if (strcasecmp(command, "set") == 0) {
     commandSet(false, first, second, third);
-  } else if (strcmp(command, "sensor") == 0) {
+  } else if (strcasecmp(command, "sensor") == 0) {
     commandSet(true, first, second, third);
-  } else if (strcmp(command, "clear") == 0) {
+  } else if (strcasecmp(command, "clear") == 0) {
     if (parseKeyboard(first, number)) {
       settings::clearAssignment(number);
       forgetLights(number);
       printKeyboard(number);
     }
-  } else if (strcmp(command, "option") == 0) {
+  } else if (strcasecmp(command, "option") == 0) {
     commandOption(first, second);
-  } else if (strcmp(command, "reset") == 0) {
-    if (first != nullptr && strcmp(first, "yes") == 0) {
+  } else if (strcasecmp(command, "reset") == 0) {
+    if (first != nullptr && strcasecmp(first, "yes") == 0) {
       settings::factoryReset();
       for (uint8_t keyboardNumber = 0; keyboardNumber < keyboard::kKeyboards; keyboardNumber++) {
         forgetLights(keyboardNumber);
@@ -959,12 +959,16 @@ void runCommand(char* line) {
   }
 }
 
-/// Reads the terminal a line at a time; any line ending works.
+/// Reads the terminal a line at a time. Any line ending works, and so does none: a
+/// command also runs half a second after its last character, for a Serial Monitor set
+/// to "No line ending". Capital letters work too.
 void handleTerminal() {
   static char line[40];
   static uint8_t length = 0;
+  static uint32_t lastCharAt = 0;
   while (Serial.available()) {
     char c = Serial.read();
+    lastCharAt = millis();
     if (c == '\n' || c == '\r') {
       if (length > 0) {
         line[length] = '\0';
@@ -974,6 +978,11 @@ void handleTerminal() {
     } else if (length < sizeof(line) - 1) {
       line[length++] = c;
     }
+  }
+  if (length > 0 && millis() - lastCharAt > 500) {
+    line[length] = '\0';
+    length = 0;
+    runCommand(line);
   }
 }
 
