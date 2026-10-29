@@ -42,6 +42,13 @@ arduino-cli upload --fqbn arduino:avr:nano:cpu=atmega328old -p /dev/cu.usbserial
 
 [![LocoNet 6040 Studio](docs/loconet-6040-studio.png)](https://github.com/CuriousTimo/LocoNet-6040-Studio)
 
+| | |
+| --- | --- |
+| [![A key pair that shows a track section](docs/loconet-6040-studio-track-section.png)](https://github.com/CuriousTimo/LocoNet-6040-Studio) | [![The settings of the Nano](docs/loconet-6040-studio-settings.png)](https://github.com/CuriousTimo/LocoNet-6040-Studio) |
+| A key pair that shows a track section: red while a train is there, green when the track is free. | The settings of the Nano, each with a plain explanation. |
+
+Each Keyboard is drawn as it looks, with its red LEDs and the four switches on its back set for its number. For every turnout the Studio also shows how Rocrail writes it (PADA, MADA and FADA).
+
 The rest of this section describes the other way: typing commands on the Serial Monitor of the Arduino IDE.
 
 You set up the Keyboards from your computer, with the USB cable that is also used to load the program onto the Nano. You only need to do this once: the Nano remembers everything, also when the power is off and when a newer version of the program is loaded.
