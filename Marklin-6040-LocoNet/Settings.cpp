@@ -8,21 +8,23 @@ namespace settings {
 
 namespace {
 
-// EEPROM layout, version 2:
+// EEPROM layout, version 3:
 //   0  'M' '6'      marks the EEPROM as ours
 //   2  version
 //   3  options, one bit each
 //   4  keyboards with their own assignment, one bit each (uint16_t)
 //   6  coil time in 50 ms steps
+//   8  fingerprint of the KeyMap.h last loaded (uint32_t)
 //  16  key pair entries: 16 keyboards × 16 key pairs × uint16_t (512 bytes)
 const uint8_t kMagic0 = 'M';
 const uint8_t kMagic1 = '6';
-const uint8_t kVersion = 2;
+const uint8_t kVersion = 3;
 const int kMagicAt = 0;
 const int kVersionAt = 2;
 const int kOptionsAt = 3;
 const int kOwnAt = 4;
 const int kCoilTimeAt = 6;
+const int kKeyMapStampAt = 8;
 const int kAddressesAt = 16;
 
 const uint8_t kAutoAssignBit = 0x01;
@@ -68,6 +70,7 @@ void factoryReset() {
   EEPROM.update(kMagicAt + 1, kMagic1);
   EEPROM.update(kVersionAt, kVersion);
   EEPROM.put(kOwnAt, own);
+  setKeyMapStamp(0);
   saveOptions();
 }
 
@@ -116,5 +119,13 @@ void clearAssignment(uint8_t keyboard) {
   own &= ~(1u << (keyboard & 0x0F));
   EEPROM.put(kOwnAt, own);
 }
+
+uint32_t keyMapStamp() {
+  uint32_t stamp = 0;
+  EEPROM.get(kKeyMapStampAt, stamp);
+  return stamp;
+}
+
+void setKeyMapStamp(uint32_t stamp) { EEPROM.put(kKeyMapStampAt, stamp); }
 
 }  // namespace settings

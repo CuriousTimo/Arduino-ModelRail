@@ -64,6 +64,11 @@ void setAddress(uint8_t keyboard, uint8_t keyPair, uint16_t address);
 /// Takes away a keyboard's own assignment.
 void clearAssignment(uint8_t keyboard);
 
+/// The fingerprint of the KeyMap.h last loaded, 0 for none; a different one means the
+/// file changed and is loaded again.
+uint32_t keyMapStamp();
+void setKeyMapStamp(uint32_t stamp);
+
 }  // namespace settings
 
 #endif

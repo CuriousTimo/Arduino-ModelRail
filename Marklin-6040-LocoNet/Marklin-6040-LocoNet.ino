@@ -13,6 +13,7 @@
 #include <avr/wdt.h>
 
 #include "Config.h"
+#include "KeyMap.h"
 #include "Keyboard.h"
 #include "Settings.h"
 
@@ -191,6 +192,75 @@ void scanKeyboards() {
         Serial.println(F(": no assignment, its keys switch nothing (see `set`)"));
       }
     }
+  }
+}
+
+// ---------------------------------------------------------------------------------------
+// Key map file (KeyMap.h)
+// ---------------------------------------------------------------------------------------
+
+const uint8_t kKeyMapLines = sizeof(kKeyMap) / sizeof(kKeyMap[0]);
+
+/// A fingerprint of KeyMap.h's table (FNV-1a), never 0.
+uint32_t keyMapStampOfFile() {
+  const uint8_t* bytes = reinterpret_cast<const uint8_t*>(kKeyMap);
+  uint32_t hash = 2166136261UL;
+  for (size_t i = 0; i < sizeof(kKeyMap); i++) {
+    hash = (hash ^ pgm_read_byte(bytes + i)) * 16777619UL;
+  }
+  return hash == 0 ? 1 : hash;
+}
+
+/// A key pair entry from the file, or 0 with a message if it is not valid.
+uint16_t checkedKeyMapEntry(uint8_t number, uint8_t keyPair, uint16_t entry) {
+  uint16_t address = settings::addressPart(entry);
+  bool sensor = settings::isSensor(entry);
+  bool valid = entry == 0 || (address >= 1 && address <= (sensor ? settings::kLastSensor
+                                                                   : settings::kLastAddress));
+  if (valid) {
+    return entry;
+  }
+  Serial.print(F("KeyMap.h: keyboard "));
+  Serial.print(number);
+  Serial.print(F(" key pair "));
+  Serial.print(keyPair + 1);
+  Serial.println(sensor ? F(": track sections are 1 to 4096; this key pair does nothing")
+                        : F(": turnouts are 1 to 2048; this key pair does nothing"));
+  return 0;
+}
+
+/// Copies KeyMap.h into the Nano's memory.
+void loadKeyMap() {
+  uint16_t loaded = 0;
+  for (uint8_t line = 0; line < kKeyMapLines; line++) {
+    uint8_t number = pgm_read_byte(&kKeyMap[line].keyboard);
+    if (number >= keyboard::kKeyboards) {
+      Serial.print(F("KeyMap.h: keyboard "));
+      Serial.print(number);
+      Serial.println(F(" does not exist, Keyboards are 0 to 15; this line is skipped"));
+      continue;
+    }
+    if (loaded & (1u << number)) {
+      Serial.print(F("KeyMap.h: keyboard "));
+      Serial.print(number);
+      Serial.println(F(" is listed twice; the last line counts"));
+    }
+    for (uint8_t keyPair = 0; keyPair < 16; keyPair++) {
+      uint16_t entry = pgm_read_word(&kKeyMap[line].keys[keyPair]);
+      settings::setAddress(number, keyPair, checkedKeyMapEntry(number, keyPair, entry));
+    }
+    forgetLights(number);
+    loaded |= 1u << number;
+  }
+  settings::setKeyMapStamp(keyMapStampOfFile());
+  Serial.print(F("Key map from KeyMap.h loaded for keyboards:"));
+  printKeyboards(loaded);
+}
+
+/// At startup: loads KeyMap.h if it is in use and changed since it was last loaded.
+void loadKeyMapIfChanged() {
+  if (kUseKeyMap && settings::keyMapStamp() != keyMapStampOfFile()) {
+    loadKeyMap();
   }
 }
 
@@ -656,6 +726,7 @@ void printHelp() {
   Serial.println(F("  option <name> on|off      auto, stopgo, hold, log, watchdog"));
   Serial.println(F("  option coil <ms>          how long a coil stays on (0: until the key is released)"));
   Serial.println(F("  version                   the firmware version"));
+  Serial.println(F("  keymap                    whether KeyMap.h is used; `keymap load` loads it again"));
   Serial.println(F("  reset yes                 factory settings: every keyboard automatic"));
 }
 
@@ -921,6 +992,18 @@ void runCommand(char* line) {
     printStatus();
   } else if (strcasecmp(command, "version") == 0) {
     printVersion();
+  } else if (strcasecmp(command, "keymap") == 0) {
+    if (!kUseKeyMap) {
+      Serial.println(F("KeyMap.h is not used: set kUseKeyMap to true in KeyMap.h and load the program again."));
+    } else if (first != nullptr && strcasecmp(first, "load") == 0) {
+      loadKeyMap();
+    } else {
+      Serial.print(F("KeyMap.h is used, "));
+      Serial.print(kKeyMapLines);
+      Serial.println(settings::keyMapStamp() == keyMapStampOfFile()
+                         ? F(" lines, loaded. Changes made here stay until a changed KeyMap.h is loaded.")
+                         : F(" lines, not loaded yet: type `keymap load`."));
+    }
   } else if (strcasecmp(command, "scan") == 0) {
     scanKeyboards();
   } else if (strcasecmp(command, "show") == 0) {
@@ -948,6 +1031,9 @@ void runCommand(char* line) {
         forgetLights(keyboardNumber);
       }
       Serial.println(F("Factory settings restored."));
+      if (kUseKeyMap) {
+        loadKeyMap();
+      }
       printOptions();
     } else {
       Serial.println(F("`reset yes` removes every keyboard's own assignment and resets the options."));
@@ -1037,6 +1123,7 @@ void setup() {
   if (resetCause & _BV(WDRF)) {
     Serial.println(F("WARNING: restarted by the watchdog: the firmware hung"));
   }
+  loadKeyMapIfChanged();
   scanKeyboards();
   if (settings::options().watchdog) {
     wdt_enable(WDTO_2S);

@@ -119,6 +119,30 @@ The top row is the key pair, the row below what it does:
 - `-`: it does nothing (key pair 7)
 - `s` and a number: it shows that track section (key pair 9 shows section 33)
 
+### Another way: write it down in a file
+
+Instead of typing commands, you can write the whole key map down in the file **`KeyMap.h`** and load it onto the Nano together with the program. This is handy when you set up several Nanos the same way, or want to keep your setup with the program.
+
+1. Open `KeyMap.h` in the Arduino IDE (it is one of the tabs next to the program).
+2. Change `kUseKeyMap = false` to `kUseKeyMap = true`.
+3. Write one line per Keyboard: first its number, then what its 16 key pairs do, from left to right. A number is a turnout, `0` is nothing, `SENSOR(33)` shows track section 33:
+
+   ```cpp
+   const KeyMapLine kKeyMap[] PROGMEM = {
+       // Keyboard 0 switches turnouts 1 to 16.
+       {0, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}},
+
+       // Keyboard 1: a station. Key pairs 1 to 8 switch its turnouts, 9 and 10 do nothing,
+       // 11 to 16 show its six tracks.
+       {1, {101, 102, 103, 104, 105, 106, 107, 108, 0, 0,
+            SENSOR(33), SENSOR(34), SENSOR(35), SENSOR(36), SENSOR(37), SENSOR(38)}},
+   };
+   ```
+
+4. Load the program onto the Nano. At the start it says `Key map from KeyMap.h loaded for keyboards: 0 1`.
+
+Both ways work together. The Nano copies the file only when it has changed, so changes you make afterwards on the Serial Monitor stay until you load a changed `KeyMap.h`. Type `keymap load` to copy the file again on purpose. Keyboards that are not in the file keep their setup. If a line has a mistake, for example turnout 3000, the Nano says so at the start and that key pair does nothing.
+
 ### Settings
 
 Type `option` to see all settings. Most layouts never need to change them.
@@ -131,7 +155,7 @@ Type `option` to see all settings. Most layouts never need to change them.
 | The STOP and GO lines of the Märklin bus switch the LocoNet track power (only after measuring them, see "How it behaves") | `option stopgo on` |
 | Keyboards that are not set up switch nothing, instead of 16 turnouts in a row | `option auto off` |
 | Switch off the automatic restart after a fault | `option watchdog off` |
-| Start all over: every Keyboard back to the table above, all settings back to the start | `reset yes` |
+| Start all over: every Keyboard back to the table above (or to `KeyMap.h`, if it is used), all settings back to the start | `reset yes` |
 
 ### All commands
 
@@ -149,6 +173,7 @@ Type `option` to see all settings. Most layouts never need to change them.
 | `status` | Track power, Keyboards found, and counters for troubleshooting |
 | `option` | All settings |
 | `version` | The program version |
+| `keymap` | Whether `KeyMap.h` is used; `keymap load` copies it again |
 | `reset yes` | Start all over |
 
 The program's own starting values for the settings are in `Config.h`, for those who change the program itself.
