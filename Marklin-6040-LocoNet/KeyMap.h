@@ -10,7 +10,8 @@
 //   until you load a changed key map again; `keymap load` copies it again on purpose.
 // - Keyboards not listed here keep their setup.
 //
-// One line per Keyboard: first its number (0 to 15, from the switches on its back), then
+// One line per Keyboard: first its number (1 to 16, as in Märklin's switch table for the
+// switches on its back: all off is Keyboard 1, only switch 1 on is Keyboard 2), then
 // its 16 key pairs in the order of the numbers printed on the Keyboard (1 to 8 in the top
 // row, 9 to 16 in the bottom row):
 //   a number      the turnout it switches (1 to 2048), the number you would type on the
@@ -34,12 +35,12 @@ struct KeyMapLine {
 };
 
 const KeyMapLine kKeyMap[] PROGMEM = {
-    // Keyboard 0 switches turnouts 1 to 16.
-    {0, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}},
+    // Keyboard 1 switches turnouts 1 to 16.
+    {1, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}},
 
-    // Keyboard 1: a station. Key pairs 1 to 8 switch its turnouts, 9 and 10 do nothing,
+    // Keyboard 2: a station. Key pairs 1 to 8 switch its turnouts, 9 and 10 do nothing,
     // 11 to 16 show its six tracks.
-    {1, {101, 102, 103, 104, 105, 106, 107, 108, 0, 0,
+    {2, {101, 102, 103, 104, 105, 106, 107, 108, 0, 0,
          SENSOR(33), SENSOR(34), SENSOR(35), SENSOR(36), SENSOR(37), SENSOR(38)}},
 };
 

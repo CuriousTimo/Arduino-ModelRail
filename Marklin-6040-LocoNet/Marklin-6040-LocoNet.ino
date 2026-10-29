@@ -127,6 +127,13 @@ uint16_t keyboardsPresent = 0;
 
 bool isPresent(uint8_t keyboardNumber) { return keyboardsPresent & (1u << keyboardNumber); }
 
+/// Keyboards are numbered as Märklin does, 1 to 16 (its switch table, book and Central
+/// Station); inside, a keyboard is its index 0 to 15, the number its I2C address carries.
+/// Every keyboard number shown or typed goes through these two.
+uint8_t shown(uint8_t index) { return index + 1; }
+const uint8_t kFirstShown = 1;
+const uint8_t kLastShown = keyboard::kKeyboards;
+
 // ---------------------------------------------------------------------------------------
 // Key assignment
 // ---------------------------------------------------------------------------------------
@@ -152,7 +159,7 @@ void printKeyboards(uint16_t mask) {
   for (uint8_t number = 0; number < keyboard::kKeyboards; number++) {
     if (mask & (1u << number)) {
       Serial.print(' ');
-      Serial.print(number);
+      Serial.print(shown(number));
       any = true;
     }
   }
@@ -178,11 +185,11 @@ void scanKeyboards() {
     bool own = settings::hasOwnAssignment(number);
     if (own && !isPresent(number)) {
       Serial.print(F("  keyboard "));
-      Serial.print(number);
+      Serial.print(shown(number));
       Serial.println(F(" has an assignment but did not answer; it still works once it sends a key"));
     } else if (!own && isPresent(number)) {
       Serial.print(F("  keyboard "));
-      Serial.print(number);
+      Serial.print(shown(number));
       if (settings::options().autoAssign) {
         Serial.print(F(": switches "));
         Serial.print(settings::autoAddressOf(number, 0));
@@ -221,7 +228,7 @@ uint16_t checkedKeyMapEntry(uint8_t number, uint8_t keyPair, uint16_t entry) {
     return entry;
   }
   Serial.print(F("KeyMap.h: keyboard "));
-  Serial.print(number);
+  Serial.print(shown(number));
   Serial.print(F(" key pair "));
   Serial.print(keyPair + 1);
   Serial.println(sensor ? F(": track sections are 1 to 4096; this key pair does nothing")
@@ -233,16 +240,17 @@ uint16_t checkedKeyMapEntry(uint8_t number, uint8_t keyPair, uint16_t entry) {
 void loadKeyMap() {
   uint16_t loaded = 0;
   for (uint8_t line = 0; line < kKeyMapLines; line++) {
-    uint8_t number = pgm_read_byte(&kKeyMap[line].keyboard);
-    if (number >= keyboard::kKeyboards) {
+    uint8_t written = pgm_read_byte(&kKeyMap[line].keyboard);  // Märklin's 1 to 16
+    if (written < kFirstShown || written > kLastShown) {
       Serial.print(F("KeyMap.h: keyboard "));
-      Serial.print(number);
-      Serial.println(F(" does not exist, Keyboards are 0 to 15; this line is skipped"));
+      Serial.print(written);
+      Serial.println(F(" does not exist, Keyboards are 1 to 16; this line is skipped"));
       continue;
     }
+    uint8_t number = written - 1;
     if (loaded & (1u << number)) {
       Serial.print(F("KeyMap.h: keyboard "));
-      Serial.print(number);
+      Serial.print(written);
       Serial.println(F(" is listed twice; the last line counts"));
     }
     for (uint8_t keyPair = 0; keyPair < 16; keyPair++) {
@@ -327,7 +335,7 @@ void flushKeyboardMessages() {
       answersDropped++;
       if (logging()) {
         Serial.print(F("I2C: keyboard "));
-        Serial.print(answer.keyboard);
+        Serial.print(shown(answer.keyboard));
         Serial.print(F(" did not take 0x"));
         Serial.print(answer.data, HEX);
         Serial.print(F(" (error "));
@@ -484,7 +492,7 @@ void handleRetries() {
 
 void logKey(uint8_t keyboardNumber, uint8_t keyPair, bool green, uint16_t address) {
   Serial.print(F("KEY: keyboard "));
-  Serial.print(keyboardNumber);
+  Serial.print(shown(keyboardNumber));
   Serial.print(F(" key "));
   Serial.print(keyPair + 1);
   Serial.print(green ? F(" green") : F(" red"));
@@ -575,7 +583,7 @@ void handleKeyboardRequests() {
     if (!isPresent(keyboardNumber)) {
       keyboardsPresent |= 1u << keyboardNumber;
       Serial.print(F("Keyboard "));
-      Serial.print(keyboardNumber);
+      Serial.print(shown(keyboardNumber));
       Serial.println(F(" found: it sent a key"));
     }
     if (keyboard::isPressed(data)) {
@@ -622,7 +630,7 @@ uint8_t showEntry(uint16_t entry, bool green) {
           Serial.print(green ? F(" closed") : F(" thrown"));
         }
         Serial.print(F(" -> keyboard "));
-        Serial.print(number);
+        Serial.print(shown(number));
         Serial.print(F(" key "));
         Serial.println(keyPair + 1);
       }
@@ -712,7 +720,7 @@ void updateLed() {
 // ---------------------------------------------------------------------------------------
 
 void printHelp() {
-  Serial.println(F("Commands (keyboards 0-15 as set by their DIP switches, key pairs 1-16):"));
+  Serial.println(F("Commands (keyboards 1-16 as in Märklin's switch table, key pairs 1-16):"));
   Serial.println(F("  status                    track power, keyboards, counters"));
   Serial.println(F("  scan                      look for keyboards on the bus"));
   Serial.println(F("  show                      every keyboard's assignment"));
@@ -791,7 +799,7 @@ void printPadded(uint16_t value, uint8_t width, char prefix = 0) {
 /// LocoNet addresses ("s" before a sensor, "-" for none).
 void printKeyboard(uint8_t number) {
   Serial.print(F("Keyboard "));
-  Serial.print(number);
+  Serial.print(shown(number));
   Serial.print(isPresent(number) ? F(", on the bus") : F(", not found"));
   if (settings::hasOwnAssignment(number)) {
     Serial.println(F(", own assignment"));
@@ -837,7 +845,7 @@ void printOptions() {
   const settings::Options& options = settings::options();
   Serial.print(F("  auto    "));
   Serial.print(options.autoAssign ? F("on ") : F("off"));
-  Serial.println(F("  keyboards without their own assignment switch kb x 16 + 1 to + 16"));
+  Serial.println(F("  keyboards without their own assignment: keyboard 1 switches 1-16, 2 17-32 ..."));
   Serial.print(F("  stopgo  "));
   Serial.print(options.stopGo ? F("on ") : F("off"));
   Serial.println(F("  Märklin STOP/GO lines switch LocoNet power (measure the lines first)"));
@@ -871,11 +879,11 @@ bool parseNumber(const char* text, long min, long max, long& value) {
 
 bool parseKeyboard(const char* text, uint8_t& number) {
   long value;
-  if (!parseNumber(text, 0, keyboard::kKeyboards - 1, value)) {
-    Serial.println(F("Keyboards are 0 to 15, as set by their DIP switches."));
+  if (!parseNumber(text, kFirstShown, kLastShown, value)) {
+    Serial.println(F("Keyboards are 1 to 16, as in Märklin's switch table."));
     return false;
   }
-  number = value;
+  number = value - 1;
   return true;
 }
 
@@ -943,16 +951,16 @@ void commandBackup() {
   for (uint8_t number = 0; number < keyboard::kKeyboards; number++) {
     bool own = settings::hasOwnAssignment(number);
     Serial.print(F("# keyboard "));
-    Serial.print(number);
+    Serial.print(shown(number));
     Serial.print(isPresent(number) ? F(": on the bus") : F(": not found"));
     Serial.println(own ? F(", own assignment") : F(", automatic"));
     if (!own) {
       Serial.print(F("clear "));
-      Serial.println(number);
+      Serial.println(shown(number));
       continue;
     }
     Serial.print(F("keys "));
-    Serial.print(number);
+    Serial.print(shown(number));
     for (uint8_t keyPair = 0; keyPair < 16; keyPair++) {
       Serial.print(' ');
       printEntry(addressOf(number, keyPair));

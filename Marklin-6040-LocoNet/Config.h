@@ -21,15 +21,16 @@ const uint8_t kStatusLedPin = 13;  // the expansion board's red LED and the Nano
 const unsigned long kTerminalBaud = 115200;
 
 // Shown at startup and by the terminal's `version` command.
-const char kFirmwareVersion[] = "0.1.0";
+const char kFirmwareVersion[] = "0.2.0";
 
 // ---------------------------------------------------------------------------------------
 // Factory settings (the terminal's `reset yes` returns to these)
 // ---------------------------------------------------------------------------------------
 
-// A keyboard without its own assignment switches 16 turnouts in a row: keyboard 0
-// switches 1 to 16, keyboard 1 switches 17 to 32, keyboard n switches n × 16 + 1 to
-// n × 16 + 16. Terminal: `option auto on|off`.
+// A keyboard without its own assignment switches 16 turnouts in a row: keyboard 1
+// switches 1 to 16, keyboard 2 switches 17 to 32, keyboard n switches (n − 1) × 16 + 1 to
+// n × 16 (keyboards numbered 1 to 16 as in Märklin's switch table). Terminal:
+// `option auto on|off`.
 const bool kFactoryAutoAssign = true;
 
 // Forward a rising edge on the Märklin bus STOP and GO lines to LocoNet as power off

@@ -6,7 +6,7 @@ An Arduino Nano takes the place of the Märklin central (6021) on the Keyboards'
 
 The Keyboards stay unmodified. The earlier [Loconet_6040_PCA9685](../Loconet_6040_PCA9685) in this repository replaced a Keyboard's own electronics with an Arduino instead; that only makes sense for a Keyboard whose electronics are broken.
 
-> **Status:** version 0.1.0, built and unit-tested on a computer; not yet tested with a real Keyboard 6040 or LocoNet.
+> **Status:** version 0.2.0, built and unit-tested on a computer; not yet tested with a real Keyboard 6040 or LocoNet.
 
 ## Hardware
 
@@ -19,7 +19,7 @@ Before switching on:
 
 1. Close the **"i2c pullup"** jumper on the interface board: the Keyboard bus needs pull-ups to 5 V.
 2. Power the Keyboards from the expansion board's **DC-IN** with a 5 V supply and **JP1 open**. Each Keyboard draws about 120 mA at 8 V; that is too much for the interface board's 7805 or for LocoNet. With JP1 closed, DC-IN is connected to the Nano's 5 V, so it must never get more than 5 V.
-3. Give every Keyboard its own number with the DIP switches on its back (0 to 15).
+3. Give every Keyboard its own number, 1 to 16, with the four switches on its back (see **Setting up**, step 2).
 
 ## Install
 
@@ -46,7 +46,7 @@ The rest of this section describes the other way: typing commands on the Serial 
 
 You set up the Keyboards from your computer, with the USB cable that is also used to load the program onto the Nano. You only need to do this once: the Nano remembers everything, also when the power is off and when a newer version of the program is loaded.
 
-If you are happy with Keyboard 0 switching turnouts 1 to 16, Keyboard 1 switching 17 to 32 and so on, there is nothing to set up at all. Step 1 and 2 are then only a check.
+If you are happy with Keyboard 1 switching turnouts 1 to 16, Keyboard 2 switching 17 to 32 and so on, there is nothing to set up at all. Step 1 and 2 are then only a check.
 
 ### Step 1: Talk to the Nano
 
@@ -56,10 +56,10 @@ If you are happy with Keyboard 0 switching turnouts 1 to 16, Keyboard 1 switchin
 4. Press the reset button on the Nano. It greets you:
 
    ```text
-   Märklin Keyboard 6040 on LocoNet, Marklin-6040-LocoNet 0.1.0
-   Keyboards found: 0 1
-     keyboard 0: switches 1 to 16
-     keyboard 1: switches 17 to 32
+   Märklin Keyboard 6040 on LocoNet, Marklin-6040-LocoNet 0.2.0
+   Keyboards found: 1 2
+     keyboard 1: switches 1 to 16
+     keyboard 2: switches 17 to 32
    Type `help` for the commands.
    ```
 
@@ -67,9 +67,22 @@ If you are happy with Keyboard 0 switching turnouts 1 to 16, Keyboard 1 switchin
 
 ### Step 2: Check that every Keyboard is found
 
-Every Keyboard has a number from **0 to 15**, set with the four small switches on its back. Two Keyboards must never have the same number. The number has nothing to do with where the Keyboard sits in the row.
+Every Keyboard has a number from **1 to 16**, set with the four small switches on its back, as in Märklin's own table. Two Keyboards must never have the same number. The number has nothing to do with where the Keyboard sits in the row.
 
-The greeting lists the Keyboards the Nano found ("Keyboards found: 0 1"). If one is missing, check its plug, its switches and the power supply, then type:
+| Keyboard | Switches ON | | Keyboard | Switches ON |
+| --- | --- | --- | --- | --- |
+| 1 | none (all off) | | 9 | 4 |
+| 2 | 1 | | 10 | 1, 4 |
+| 3 | 2 | | 11 | 2, 4 |
+| 4 | 1, 2 | | 12 | 1, 2, 4 |
+| 5 | 3 | | 13 | 3, 4 |
+| 6 | 1, 3 | | 14 | 1, 3, 4 |
+| 7 | 2, 3 | | 15 | 2, 3, 4 |
+| 8 | 1, 2, 3 | | 16 | 1, 2, 3, 4 |
+
+This is Märklin's table from the Keyboard's manual and the Märklin Digital book. [LocoNet 6040 Studio](https://github.com/CuriousTimo/LocoNet-6040-Studio) draws the switches for every Keyboard.
+
+The greeting lists the Keyboards the Nano found ("Keyboards found: 1 2"). If one is missing, check its plug, its switches and the power supply, then type:
 
 ```text
 scan
@@ -85,11 +98,11 @@ Without setup, each Keyboard switches 16 turnouts in a row:
 
 | Keyboard | Switches turnouts |
 | --- | --- |
-| 0 | 1 to 16 |
-| 1 | 17 to 32 |
-| 2 | 33 to 48 |
+| 1 | 1 to 16 |
+| 2 | 17 to 32 |
+| 3 | 33 to 48 |
 | … | 16 more for each next Keyboard |
-| 15 | 241 to 256 |
+| 16 | 241 to 256 |
 
 The turnout number is the one you would type on the Intellibox to switch that turnout (the turnout address, not the decoder address).
 
@@ -135,17 +148,17 @@ Instead of typing commands, you can write the whole key map down in the file **`
 
    ```cpp
    const KeyMapLine kKeyMap[] PROGMEM = {
-       // Keyboard 0 switches turnouts 1 to 16.
-       {0, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}},
+       // Keyboard 1 switches turnouts 1 to 16.
+       {1, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}},
 
-       // Keyboard 1: a station. Key pairs 1 to 8 switch its turnouts, 9 and 10 do nothing,
+       // Keyboard 2: a station. Key pairs 1 to 8 switch its turnouts, 9 and 10 do nothing,
        // 11 to 16 show its six tracks.
-       {1, {101, 102, 103, 104, 105, 106, 107, 108, 0, 0,
+       {2, {101, 102, 103, 104, 105, 106, 107, 108, 0, 0,
             SENSOR(33), SENSOR(34), SENSOR(35), SENSOR(36), SENSOR(37), SENSOR(38)}},
    };
    ```
 
-4. Load the program onto the Nano. At the start it says `Key map from KeyMap.h loaded for keyboards: 0 1`.
+4. Load the program onto the Nano. At the start it says `Key map from KeyMap.h loaded for keyboards: 1 2`.
 
 Both ways work together. The Nano copies the file only when it has changed, so changes you make afterwards on the Serial Monitor stay until you load a changed `KeyMap.h`. Type `keymap load` to copy the file again on purpose. Keyboards that are not in the file keep their setup. If a line has a mistake, for example turnout 3000, the Nano says so at the start and that key pair does nothing.
 
@@ -155,15 +168,15 @@ Type `backup`. The Nano writes its whole setup as a list of commands:
 
 ```text
 > backup
-# Marklin-6040-LocoNet 0.1.0 backup
+# Marklin-6040-LocoNet 0.2.0 backup
 option auto on
 option stopgo off
 option hold on
 option log on
 option watchdog on
 option coil 200
-# keyboard 0: on the bus, automatic
-clear 0
+# keyboard 1: on the bus, automatic
+clear 1
 ...
 # keyboard 2: on the bus, own assignment
 keys 2 101 102 103 104 210 106 0 108 s33 110 111 112 113 114 115 116
@@ -233,8 +246,8 @@ The program's own starting values for the settings are in `Config.h`, for those 
 With `option log on` (the default), the terminal logs every key and every LocoNet switch command for an assigned address:
 
 ```text
-KEY: keyboard 0 key 3 green -> LocoNet switch 3 closed: Done
-LN: switch 17 thrown -> keyboard 1 key 1
+KEY: keyboard 1 key 3 green -> LocoNet switch 3 closed: Done
+LN: switch 17 thrown -> keyboard 2 key 1
 LN: sensor 33 occupied -> keyboard 2 key 9
 LN: track power off
 REFUSED: will send again in 3 s: switch 5 thrown

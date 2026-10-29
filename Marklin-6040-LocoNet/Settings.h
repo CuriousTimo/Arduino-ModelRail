@@ -20,7 +20,8 @@ inline bool isSensor(uint16_t entry) { return entry & kSensorFlag; }
 inline uint16_t addressPart(uint16_t entry) { return entry & ~kSensorFlag; }
 
 struct Options {
-  /// A keyboard without its own assignment switches keyboard × 16 + 1 to + 16.
+  /// A keyboard without its own assignment switches 16 turnouts in a row: index 0
+  /// (Märklin's keyboard 1) 1 to 16, index 1 17 to 32. Settings use the index 0 to 15.
   bool autoAssign;
   /// Forward the Märklin bus STOP and GO lines to LocoNet.
   bool stopGo;
