@@ -1,0 +1,62 @@
+# Marklin-6040-LocoNet: checks every change, and builds the ready-made firmware file (.hex)
+# for a release. Every Nano runs the same firmware (the setup lives in its EEPROM), so one
+# .hex file is all anyone needs; nobody has to compile or install the Arduino IDE.
+#
+# A release is made by pushing a tag that matches kFirmwareVersion in Config.h:
+#   git tag Marklin-6040-LocoNet-v0.2.0 && git push origin Marklin-6040-LocoNet-v0.2.0
+# It is created as a draft with the .hex attached.
+
+name: Marklin-6040-LocoNet
+
+on:
+  push:
+    branches: [master]
+    paths: ['Marklin-6040-LocoNet/**', '.github/workflows/marklin-6040-loconet.yml']
+    tags: ['Marklin-6040-LocoNet-v*']
+  pull_request:
+    paths: ['Marklin-6040-LocoNet/**', '.github/workflows/marklin-6040-loconet.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build the firmware
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/setup-arduino-cli@v2
+      # The versions it was tested with: Arduino AVR Boards 1.8.6, LocoNet 1.1.13
+      - name: Board package and library
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install arduino:avr@1.8.6
+          arduino-cli lib install LocoNet@1.1.13
+      - name: Host tests of the Keyboard message format
+        run: |
+          c++ -std=c++11 -Wall -Wextra -I Marklin-6040-LocoNet Marklin-6040-LocoNet/test/keyboard_test.cpp -o keyboard_test
+          ./keyboard_test
+      - name: Compile for the Arduino Nano
+        run: arduino-cli compile --fqbn arduino:avr:nano --warnings all --output-dir out Marklin-6040-LocoNet
+      - name: Name the firmware file
+        run: |
+          version=$(grep -oE 'kFirmwareVersion\[\] = "[^"]+"' Marklin-6040-LocoNet/Config.h | cut -d'"' -f2)
+          cp out/Marklin-6040-LocoNet.ino.hex "Marklin-6040-LocoNet-$version.hex"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Marklin-6040-LocoNet-${{ env.VERSION }}
+          path: Marklin-6040-LocoNet-${{ env.VERSION }}.hex
+      - name: Draft release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_REF_NAME" != "Marklin-6040-LocoNet-v$VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match kFirmwareVersion $VERSION in Config.h"
+            exit 1
+          fi
+          gh release create "$GITHUB_REF_NAME" --draft --prerelease \
+            --title "Marklin-6040-LocoNet $VERSION" \
+            --notes "The ready-made program for the Arduino Nano: \`Marklin-6040-LocoNet-$VERSION.hex\`. Load it onto the Nano without the Arduino IDE as described in the README, \"Loading the program without the Arduino IDE\": https://github.com/CuriousTimo/Arduino-ModelRail/tree/master/Marklin-6040-LocoNet#loading-the-program-without-the-arduino-ide. Not yet tested with real hardware." \
+            "Marklin-6040-LocoNet-$VERSION.hex"

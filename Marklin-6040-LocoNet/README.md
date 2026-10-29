@@ -21,9 +21,38 @@ Before switching on:
 2. Power the Keyboards from the expansion board's **DC-IN** with a 5 V supply and **JP1 open**. Each Keyboard draws about 120 mA at 8 V; that is too much for the interface board's 7805 or for LocoNet. With JP1 closed, DC-IN is connected to the Nano's 5 V, so it must never get more than 5 V.
 3. Give every Keyboard its own number, 1 to 16, with the four switches on its back (see **Setting up**, step 2).
 
-## Install
+## Loading the program without the Arduino IDE
 
-1. In the Arduino IDE, install the **LocoNet** library by Alex Shepherd et al. (mrrwa) from the Library Manager. `Wire` and `EEPROM` come with the IDE.
+You don't need the Arduino IDE or any programming. Every Nano gets the same ready-made program; what your Keyboards do is set up afterwards (see **Setting up**).
+
+1. Download `Marklin-6040-LocoNet-x.y.z.hex` from the [Releases](https://github.com/CuriousTimo/Arduino-ModelRail/releases) page (the newest "Marklin-6040-LocoNet" release).
+2. Connect the Nano to the computer with its USB cable.
+3. Load the file onto the Nano with one of the tools below.
+
+**Windows: XLoader.** A small free program (search for "XLoader Arduino"; it needs no installation).
+
+1. **Hex file:** choose the downloaded `.hex` file.
+2. **Device:** `Duemilanove/Nano(ATmega328)`. If the upload fails, try `Uno(ATmega328)` (see the note below).
+3. **COM port:** the Nano's port (in the Device Manager under "Ports (COM & LPT)").
+4. Click **Upload**. After a few seconds it says how many bytes were uploaded.
+
+**Mac and Linux: avrdude.** Install it once: on a Mac `brew install avrdude` ([Homebrew](https://brew.sh)), on Debian, Ubuntu or Raspberry Pi OS `sudo apt install avrdude`. Then, in the folder with the downloaded file:
+
+```sh
+avrdude -p atmega328p -c arduino -P /dev/cu.usbserial-XXXX -b 57600 -U flash:w:Marklin-6040-LocoNet-0.2.0.hex:i
+```
+
+Replace `/dev/cu.usbserial-XXXX` with the Nano's port (on a Mac `ls /dev/cu.*`, on Linux usually `/dev/ttyUSB0`) and the file name with the one you downloaded. It ends with `avrdude done. Thank you.`
+
+**Old or new bootloader:** most Nanos, and nearly all clones, have the old bootloader, which loads at 57600 baud (`Duemilanove/Nano` in XLoader, `-b 57600` for avrdude). Newer original Nanos load at 115200 baud: choose `Uno(ATmega328)` in XLoader, or `-b 115200` for avrdude. If one doesn't work, try the other; nothing breaks.
+
+Then open a serial terminal at 115200 baud (or LocoNet 6040 Studio) and continue with **Setting up**.
+
+## Building the program yourself
+
+For those who want to change the program:
+
+1. In the Arduino IDE, install the **LocoNet** library by Alex Shepherd et al. (mrrwa) from the Library Manager (tested with 1.1.13). `Wire` and `EEPROM` come with the IDE.
 2. Open `Marklin-6040-LocoNet.ino`.
 3. Choose **Arduino Nano** as the board (with a clone, processor **ATmega328P (Old Bootloader)**) and upload.
 4. Set up the Keyboards from the Serial Monitor, as described under **Setting up** below.
@@ -31,10 +60,12 @@ Before switching on:
 With the Arduino command line:
 
 ```sh
-arduino-cli lib install LocoNet
+arduino-cli lib install LocoNet@1.1.13
 arduino-cli compile --fqbn arduino:avr:nano .
 arduino-cli upload --fqbn arduino:avr:nano:cpu=atmega328old -p /dev/cu.usbserial-XXXX .
 ```
+
+GitHub builds the program on every change (`.github/workflows/marklin-6040-loconet.yml`, with Arduino AVR Boards 1.8.6 and LocoNet 1.1.13) and attaches the `.hex` to each release.
 
 ## Setting up
 
