@@ -4,7 +4,7 @@ Use a **Märklin Keyboard 6040** as a LocoNet switch panel, the way an **Uhlenbr
 
 An Arduino Nano takes the place of the Märklin central (6021) on the Keyboards' I2C bus. It answers the Keyboards as the central would and turns each key into a LocoNet switch command. Up to 16 Keyboards can share the bus, each with its own number.
 
-The Keyboards stay unmodified. [Loconet_6040_PCA9685](../Loconet_6040_PCA9685) in this repository takes the other way: it replaces a single Keyboard's electronics with an Arduino.
+The Keyboards stay unmodified. The earlier [Loconet_6040_PCA9685](../Loconet_6040_PCA9685) in this repository replaced a Keyboard's own electronics with an Arduino instead; that only makes sense for a Keyboard whose electronics are broken.
 
 > **Status:** version 0.1.0, built and unit-tested on a computer; not yet tested with a real Keyboard 6040 or LocoNet.
 
