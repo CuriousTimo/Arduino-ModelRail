@@ -4,6 +4,10 @@ An expansion for the [Arduino Nano LocoNet & DCC Interface v3](../Arduino%20Loco
 
 Designed in EAGLE 9.6.2: the schematic and the board are in [`Eagle/`](Eagle). Board 44.8 × 61 mm, two layers.
 
+![The board](Board.png)
+
+*The board from above, drawn from the EAGLE file: red tracks on top, blue underneath, green pads, grey the printing on the board.*
+
 ## On the board
 
 - **Two DIN 41612 connectors** (left and right, 32-pole B/2), for the Keyboards' side connectors: SDA, SCL, STOP, GO, INIT and 8 V. The left and right connectors are mirrored, so a Keyboard fits on either side, and further Keyboards plug onto each other as usual.

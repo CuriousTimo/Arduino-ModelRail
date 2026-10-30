@@ -4,6 +4,10 @@ Gives an [Arduino Nano LocoNet & DCC Interface v2](../Arduino%20LocoNet-DCC%20In
 
 Designed in EAGLE 9.6.2: the schematic and the board are in [`Eagle/`](Eagle). Board 42.9 × 30.5 mm, two layers.
 
+![The board](Board.png)
+
+*The board from above, drawn from the EAGLE file: red tracks on top, blue underneath, green pads, grey the printing on the board.*
+
 ## How it fits
 
 The adapter sits between the v2 board and the Arduino Nano:

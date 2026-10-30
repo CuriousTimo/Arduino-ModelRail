@@ -4,6 +4,10 @@ The base module for LocoNet projects with an Arduino Nano: LocoNet in and out, a
 
 Designed in EAGLE 9.6.2: the schematic and the board are in [`Eagle/`](Eagle). Board 108.9 × 47 mm, two layers, through-hole parts only.
 
+![The board](Board.png)
+
+*The board from above, drawn from the EAGLE file: red tracks on top, blue underneath, green pads, grey the printing on the board.*
+
 ## On the board
 
 | Part | What it does | Nano pin |
