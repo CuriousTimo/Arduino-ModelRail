@@ -1,6 +1,6 @@
 # Märklin I2C Expansion v1
 
-An expansion for the [Arduino Nano LocoNet & DCC Interface v3](../Arduino%20LocoNet-DCC%20Interface%20v3) that connects Märklin Keyboards 6040 (the Märklin Digital accessory bus, I2C) to the Nano. Used by [Marklin-6040-LocoNet](../Marklin-6040-LocoNet), which makes unmodified Keyboards 6040 work on LocoNet like an Uhlenbrock IB-Switch.
+An expansion for the [Arduino Nano LocoNet & DCC Interface v3](../Arduino%20LocoNet-DCC%20Interface%20v3) (or a v2 with the [v2 Expansion Adapter](../Arduino%20LocoNet-DCC%20v2%20Expansion%20Adapter)) that connects Märklin Keyboards 6040 (the Märklin Digital accessory bus, I2C) to the Nano. Used by [Marklin-6040-LocoNet](../Marklin-6040-LocoNet), which makes unmodified Keyboards 6040 work on LocoNet like an Uhlenbrock IB-Switch.
 
 Designed in EAGLE 9.6.2: the schematic and the board are in [`Eagle/`](Eagle). Board 44.8 × 61 mm, two layers.
 

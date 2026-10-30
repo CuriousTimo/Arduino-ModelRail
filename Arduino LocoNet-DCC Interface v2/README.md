@@ -6,7 +6,7 @@
 
 A base board for model railway projects with an Arduino Nano: it connects the Nano to **LocoNet** (in and out), to **DCC** from the track or a booster, and to **I2C** devices such as a PCA9685 servo board. The board is modular: you only fit the parts for what you use.
 
-This manual replaces the PDF [Manual Rev 1.1](Manual/Arduino%20LocoNet-DCC%20Interface%20v2%20Manual%20Rev%201.1.pdf) (2017); the jumper explanations below are checked against the schematic in [`Eagle/`](Eagle). The successor, the [v3](../Arduino%20LocoNet-DCC%20Interface%20v3), has the same circuit and jumpers plus two expansion headers.
+This manual replaces the PDF [Manual Rev 1.1](Manual/Arduino%20LocoNet-DCC%20Interface%20v2%20Manual%20Rev%201.1.pdf) (2017); the jumper explanations below are checked against the schematic in [`Eagle/`](Eagle). The successor, the [v3](../Arduino%20LocoNet-DCC%20Interface%20v3), has the same circuit and jumpers plus two expansion headers; the [v2 Expansion Adapter](../Arduino%20LocoNet-DCC%20v2%20Expansion%20Adapter) gives a v2 those headers too.
 
 ## Connectors
 
