@@ -84,6 +84,21 @@ bool lastSentValid = false;
 uint32_t lastSentAt = 0;
 const uint16_t kRefusalWindowMs = 250;
 
+// Syncing the lights with the command station's turnout positions (OPC_SW_STATE), as an
+// IB-Switch does at power-up. Its answer, a LONG_ACK, does not name the turnout: it
+// belongs to the question just before it on the bus, ours or another device's.
+uint8_t synced[keyboard::kTurnouts / 8];  // key pairs whose turnout was asked this round
+bool syncActive = false;
+bool syncWaiting = false;     // our question is out and not yet answered
+bool syncUnanswered = false;  // the last question got no answer: no command station yet
+uint16_t syncAsked = 0;       // the turnout of our question
+uint32_t syncDue = 0;         // when to ask, or when to stop waiting for the answer
+uint16_t questionAddress = 0;  // the last OPC_SW_STATE on the bus, from any device
+uint32_t questionAt = 0;
+// LONG_ACK to OPC_SW_STATE: this bit of its ACK1 is set for closed (0x30), clear for
+// thrown (0x50), as the Intellibox answers and JMRI reads it.
+const uint8_t kSwStateClosed = 0x20;
+
 // Refused commands waiting to be sent again.
 struct Retry {
   SwitchCommand command;
@@ -147,11 +162,15 @@ bool servesKeyboard(uint8_t keyboardNumber) {
          (settings::options().autoAssign && isPresent(keyboardNumber));
 }
 
-/// Forgets the lights of a keyboard whose assignment changed.
+void startSync(uint16_t delayMs);
+
+/// Forgets the lights of a keyboard whose assignment changed, and asks the command
+/// station for its turnouts again.
 void forgetLights(uint8_t keyboardNumber) {
   for (uint8_t keyPair = 0; keyPair < 16; keyPair++) {
     setFlag(lightKnown, (keyboardNumber << 4) | keyPair, false);
   }
+  startSync(0);
 }
 
 void printKeyboards(uint16_t mask) {
@@ -200,6 +219,7 @@ void scanKeyboards() {
       }
     }
   }
+  startSync(0);
 }
 
 // ---------------------------------------------------------------------------------------
@@ -585,6 +605,7 @@ void handleKeyboardRequests() {
       Serial.print(F("Keyboard "));
       Serial.print(shown(keyboardNumber));
       Serial.println(F(" found: it sent a key"));
+      startSync(0);
     }
     if (keyboard::isPressed(data)) {
       handleKeyPress(keyboardNumber, data);
@@ -645,6 +666,91 @@ void showTurnout(uint16_t address, bool green) { showEntry(address, green); }
 /// An occupancy detector's state from LocoNet: red occupied, green free.
 void showSensor(uint16_t address, bool occupied) {
   showEntry(settings::kSensorFlag | address, !occupied);
+}
+
+/// Starts asking the command station for every assigned turnout's position, after
+/// `delayMs`. Called at startup, after track power on and when an assignment changes.
+void startSync(uint16_t delayMs) {
+  memset(synced, 0, sizeof(synced));
+  syncActive = true;
+  syncWaiting = false;
+  syncDue = millis() + delayMs;
+}
+
+/// Marks every key pair of this turnout as asked in this round.
+void markSynced(uint16_t address) {
+  for (uint16_t key = 0; key < keyboard::kTurnouts; key++) {
+    if (addressOf(key >> 4, key & 0x0F) == address) {
+      setFlag(synced, key, true);
+    }
+  }
+}
+
+/// The next key pair whose turnout is still to be asked, or -1 when all are done.
+int16_t nextToSync() {
+  for (uint16_t key = 0; key < keyboard::kTurnouts; key++) {
+    uint8_t number = key >> 4;
+    uint16_t entry = addressOf(number, key & 0x0F);
+    if (entry != 0 && !settings::isSensor(entry) && servesKeyboard(number) &&
+        !isSet(synced, key)) {
+      return key;
+    }
+  }
+  return -1;
+}
+
+/// Asks the next turnout, one at a time; without an answer, asks the same one again after
+/// 3 s, as an IB-Switch does with no command station on the bus.
+void handleSync() {
+  if (!syncActive || !reached(syncDue)) {
+    return;
+  }
+  if (syncWaiting) {
+    syncWaiting = false;
+    if (!syncUnanswered && logging()) {
+      Serial.println(F("SYNC: no command station answers; asking again every 3 s"));
+    }
+    syncUnanswered = true;
+    syncDue = millis() + kRetryAfterMs;
+    return;
+  }
+  int16_t key = nextToSync();
+  if (key < 0) {
+    syncActive = false;
+    if (logging()) {
+      Serial.println(F("SYNC: the lights show the command station's turnout positions"));
+    }
+    return;
+  }
+  uint16_t address = addressOf(key >> 4, key & 0x0F);
+  if (LocoNet.reportSwitch(address) != LN_DONE) {
+    syncDue = millis() + kSyncAnswerMs;  // the bus is busy or gone: try again shortly
+    return;
+  }
+  syncAsked = address;
+  questionAddress = address;
+  questionAt = millis();
+  syncWaiting = true;
+  syncDue = millis() + kSyncAnswerMs;
+}
+
+/// A turnout position from a LONG_ACK to OPC_SW_STATE: the answer to the question just
+/// before it, whether this firmware, an IB-Switch or the Intellibox's keyboard asked.
+void handleSwitchState(uint8_t ack1) {
+  if (questionAddress == 0 || millis() - questionAt > kSyncAnswerMs) {
+    return;
+  }
+  uint16_t address = questionAddress;
+  questionAddress = 0;
+  showTurnout(address, ack1 & kSwStateClosed);
+  if (syncActive) {
+    markSynced(address);
+  }
+  if (syncWaiting && address == syncAsked) {
+    syncWaiting = false;
+    syncUnanswered = false;
+    syncDue = millis();
+  }
 }
 
 void handleLocoNet() {
@@ -773,6 +879,10 @@ void printStatus() {
   Serial.print(stats->TxPackets);
   Serial.print(F(", collisions: "));
   Serial.println(stats->Collisions);
+  Serial.print(F("Turnout positions: "));
+  Serial.println(!syncActive      ? F("synced with the command station")
+                 : syncUnanswered ? F("no command station answers yet; asking every 3 s")
+                                  : F("asking the command station"));
 }
 
 uint8_t digitsOf(uint16_t value) {
@@ -1215,8 +1325,26 @@ void notifySwitchOutputsReport(uint16_t address, uint8_t closedOutput, uint8_t t
 // Called for OPC_INPUT_REP: an occupancy detector or a track contact, 1 to 4096.
 void notifySensor(uint16_t address, uint8_t state) { showSensor(address, state != 0); }
 
+// Called for OPC_SW_STATE from any device, our own included: a LONG_ACK with the
+// position follows.
+void notifySwitchState(uint16_t address, uint8_t output, uint8_t direction) {
+  (void)output;
+  (void)direction;
+  questionAddress = address;
+  questionAt = millis();
+}
+
+// Called for a LONG_ACK to OPC_SW_STATE: d1 is 0x3C, d2 the position.
+void notifyLongAck(uint8_t d1, uint8_t d2) {
+  (void)d1;
+  handleSwitchState(d2);
+}
+
 // Called for OPC_GPON and OPC_GPOFF.
 void notifyPower(uint8_t state) {
+  if (state) {
+    startSync(kSyncAfterPowerOnMs);  // turnouts may have changed while power was off
+  }
   trackPower = state ? TrackPower::On : TrackPower::Off;
   if (logging()) {
     Serial.println(state ? F("LN: track power on") : F("LN: track power off"));
@@ -1257,6 +1385,7 @@ void loop() {
   handleKeyboardRequests();
   handleCoilOffs();
   handleRetries();
+  handleSync();
   handleLocoNet();
   flushKeyboardMessages();
   handleStopGo();

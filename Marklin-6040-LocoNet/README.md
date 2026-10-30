@@ -206,7 +206,7 @@ Type `backup`. The Nano writes its whole setup as a list of commands:
 
 ```text
 > backup
-# Marklin-6040-LocoNet 0.2.0 backup
+# Marklin-6040-LocoNet 0.3.0 backup
 option auto on
 option stopgo off
 option hold on
@@ -265,6 +265,7 @@ The program's own starting values for the settings are in `Config.h`, for those 
 
 | On the Keyboard | On LocoNet |
 | --- | --- |
+| Switched on, and every time the track power goes on | `OPC_SW_STATE` for each assigned turnout, one at a time: the command station answers where it is (`LONG_ACK`), and the lights show it, as an IB-Switch does at power-up |
 | Press a key | `OPC_SW_REQ` coil on, closed (green) or thrown (red); the lights change once the command is on the bus |
 | 200 ms later | `OPC_SW_REQ` coil off for the same turnout, however long the key is held (`option coil`, as the IB-Switch's Special Option 1) |
 | Lights change | Any `OPC_SW_REQ` coil-on for an assigned address, or an `OPC_SW_REP` with the outputs of a decoder that reports them |
@@ -273,6 +274,7 @@ The program's own starting values for the settings are in `Config.h`, for those 
 
 - **Track power off:** while LocoNet reports power off (`OPC_GPOFF`), a key is not sent and its lights go back to the turnout's last known position (`option hold`).
 - **Refused command:** when the command station answers a switch command with a refusal (`LONG_ACK`, because its buffer is full or it is in STOP), the firmware sends it again after 3 s, up to 10 times, as an IB-Switch does (its Special Option 6). If it still fails, the lights go back to the turnout's last known position. A new key press or another device switching the turnout cancels the retry.
+- **No command station yet:** until the command station answers the first question, the lights of the turnouts stay as the Keyboard shows them, and the firmware asks again every 3 s, as an IB-Switch does. `status` shows whether the lights match the command station.
 - **No LocoNet:** if a command cannot be sent, the lights stay as they were. For a turnout whose position is not known yet, the Keyboard gets no answer and asks again about once a second, as it does with a Märklin central in STOP.
 - **Releasing a key:** with `option coil 0` the coil goes off on the key release instead. The Keyboard's release names only the decoder (four key pairs), so the firmware then switches off the coil of the key last pressed on that decoder; the fixed coil time avoids that guess.
 - **STOP and GO:** the Märklin bus STOP and GO lines can switch LocoNet power off and on (`option stopgo on`). This is **off** until the lines are measured: a floating line would switch the whole layout's power at random.
@@ -284,6 +286,8 @@ The program's own starting values for the settings are in `Config.h`, for those 
 With `option log on` (the default), the terminal logs every key and every LocoNet switch command for an assigned address:
 
 ```text
+LN: switch 3 closed -> keyboard 1 key 3
+SYNC: the lights show the command station's turnout positions
 KEY: keyboard 1 key 3 green -> LocoNet switch 3 closed: Done
 LN: switch 17 thrown -> keyboard 2 key 1
 LN: sensor 33 occupied -> keyboard 2 key 9
@@ -307,19 +311,22 @@ c++ -std=c++11 -Wall -Wextra -I.. keyboard_test.cpp -o keyboard_test && ./keyboa
 | --- | --- | --- |
 | Key pairs | 20, × 2 levels | 16 per Keyboard, up to 16 Keyboards |
 | Turnout addresses | 1 to 2048 | 1 to 2048 |
+| Lights at power-up | Asks the command station each turnout's position | The same, and again every time the track power goes on |
 | Lights follow other devices | Yes | Yes |
 | Coil time | Special Option 1, 200 ms | `option coil`, 200 ms |
-| Retry after a refusal | Special Option 6, 3 s | 3 s, up to 10 times |
+| Retry after a refusal | Special Option 6, about 3 s; keys pressed meanwhile are saved and switched later | 3 s, up to 10 times; without track power a key is not sent at all (`option hold`) |
 | Occupancy display | No | `sensor` |
 | Sensors that press a key | Yes | Not yet |
 | Routes | 40 × 20 steps, pauses, sub-routes, blocking | Not yet |
 | Setup | On its own keys | USB terminal |
 
+What a real IB-Switch and an Intellibox send on LocoNet, message by message with every byte decoded, is in [How an Uhlenbrock IB-Switch works on LocoNet](docs/ib-switch-analysis.md). The firmware follows it.
+
 ## Ideas for later
 
 - **Sensors that press a key**, as on an IB-Switch: a sensor turning occupied or free switches a turnout or a route.
 - **Routes** like the Märklin Memory 6043 and the IB-Switch: a key pair or a sensor switches a list of turnouts, one after another. Sized for a few Keyboards: a shared pool of about 200 steps (for example 16 routes of 12 turnouts) fits in the Nano's EEPROM next to the key assignment. The IB-Switch's 40 routes × 20 steps would need 1.6 KB and does not fit; a 24C256 EEPROM chip on the I2C bus would lift that limit. On a 6040, an active route shows red and a free one green: its key pairs cannot show the IB-Switch's yellow.
-- **Lights at startup:** find out how a real IB-Switch gets its lights at power-up (sniff its LocoNet traffic) and do the same. Sensors are only known once they report; some detectors (Digitrax) report all of them on a request.
+- **Sensor lights at startup:** turnouts are asked at startup, but LocoNet has no general question for a sensor; sensors are only known once they report. Some detectors (Digitrax) report all of them on a request.
 - **Programming from the Keyboard itself**, as on an IB-Switch: for example, a terminal command that waits for a key press and gives that key pair the next address.
 - **LNCV** (Uhlenbrock's LocoNet configuration variables), so the Intellibox can program the assignment like an IB-Switch's.
 

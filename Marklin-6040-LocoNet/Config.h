@@ -21,7 +21,7 @@ const uint8_t kStatusLedPin = 13;  // the expansion board's red LED and the Nano
 const unsigned long kTerminalBaud = 115200;
 
 // Shown at startup and by the terminal's `version` command.
-const char kFirmwareVersion[] = "0.2.0";
+const char kFirmwareVersion[] = "0.3.0";
 
 // ---------------------------------------------------------------------------------------
 // Factory settings (the terminal's `reset yes` returns to these)
@@ -59,6 +59,16 @@ const uint16_t kFactoryCoilTimeMs = 200;
 // IB-Switch does (its Special Option 6, also 3 s).
 const uint16_t kRetryAfterMs = 3000;
 const uint8_t kRetryTries = 10;
+
+// At startup and after every track power on, the lights are synced with the command
+// station: each assigned turnout's position is asked (OPC_SW_STATE), one at a time, as an
+// IB-Switch does at power-up. An answer (LONG_ACK) comes within milliseconds; without one
+// within this time no command station is listening, and the same turnout is asked again
+// after kRetryAfterMs. See docs/ib-switch-analysis.md.
+const uint16_t kSyncAnswerMs = 300;
+// After track power on, the Intellibox first asks its own keyboard's turnouts 1 to 8;
+// the sync waits until that is done, so the answers are not mixed up.
+const uint16_t kSyncAfterPowerOnMs = 1000;
 
 // Restart the Nano if its main loop hangs for 2 s, for example on a stuck I2C bus.
 // Terminal: `option watchdog on|off`.
