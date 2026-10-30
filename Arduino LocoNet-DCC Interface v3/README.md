@@ -63,6 +63,49 @@ Two rows of three pins. The middle column goes to the blue terminal; always put 
 | Both jumpers **left** | SCL (A5) | SDA (A4) |
 | Both jumpers **right** | D5 | D6 |
 
+## Parts list
+
+Fit only the groups you need. The names are the ones on the board and in the schematic.
+
+| Group | Part | Value |
+| --- | --- | --- |
+| **Power supply** | VR1 | LM7805 |
+| | R20 | 2.2 kΩ (power LED) |
+| | D1 | 1N4003 (protects the 7805) |
+| | D5 | 1N4004 (power terminal) |
+| | C1, C3 | 100 nF |
+| | C2 | 10 µF |
+| | POWER | 3 mm green LED |
+| | PWR | 2-pole terminal, 5.08 mm |
+| **I2C** | R9, R10 | 4.7 kΩ |
+| | PCA9685 | 6-pin male header, for a PCA9685 servo board |
+| | X1 | 4-pole terminal, 5.08 mm (the blue terminal) |
+| **LocoNet** | IC1 | LM393N comparator |
+| | T1 | BC337 NPN transistor |
+| | R1 | 4.7 kΩ |
+| | R2 | 27 kΩ |
+| | R3 | 39 kΩ |
+| | R4 | 47 kΩ |
+| | R5 | 150 kΩ |
+| | R6 | 240 kΩ |
+| | R7 | 1 kΩ |
+| | R8 | 470 Ω (LocoNet LED) |
+| | D2, D3 | 1N4003 (RailSync to the power supply) |
+| | LOCONET | 3 mm red LED |
+| | J1, J2 | 6-pin modular sockets (RJ12) |
+| **DCC** | DCC | 6N137 optocoupler |
+| | R11, R12, R13 | 10 kΩ (R13: see below) |
+| | D4 | 1N4148 |
+| | DCC-IN | 2-pole terminal, 5.08 mm |
+| **Nano and headers** | SV2, SV3 | 2 × 15-pin female header, for the Arduino Nano |
+| | SV1, SDA | 2 × 15-pin female header next to the Nano, with every Nano pin (optional) |
+| | EXP1, EXP2 | 2 × 10-pin boxed header (2 × 5, 2.54 mm), for the expansion flat cables |
+| | JP1 | 2 × 3 pin header and 3 jumpers (power and pull-ups) |
+| | SCL/SDA | 2 × 3 pin header and 2 jumpers (blue terminal) |
+| | | Arduino Nano (ATmega328P, 5 V) |
+
+The 6N137 and the LM393N are easier to replace in an 8-pin IC socket. R13 limits the current through the optocoupler: at 10 kΩ it gives about 1.5 mA at 16 V DCC, while a 6N137 is only guaranteed to switch at about 5 mA; if DCC is not detected reliably, **1.5 to 2.2 kΩ** (0.25 W) is the safer value.
+
 ## To check before building more
 
 Points from a review of the v3 design; none of them stops the board from working on the bench, but they are worth looking at for a v4:
