@@ -14,18 +14,54 @@ Designed in EAGLE 9.6.2: the schematic and the board are in [`Eagle/`](Eagle). B
 | DCC input | 6N137 optocoupler, DCC from the track or a booster on the two-pole terminal | **D2** (interrupt, as NmraDcc needs) |
 | Power | 7805 regulator, fed from LocoNet RailSync or a separate power input (both through diodes); green LED | |
 | I2C | 4.7 kΩ pull-ups (jumper), a 6-pin header for a PCA9685 servo board | A4 (SDA), A5 (SCL) |
-| Blue 4-pole terminal | 5 V, GND, and either I2C or D5/D6, chosen with jumpers | |
+| Blue 4-pole terminal | 5V · SCL/D5 · SDA/D6 · GND: either I2C or D5/D6, chosen with jumpers | |
+| Power terminal (PWR +, GND) | A separate supply for the 7805, about 9 to 15 V DC | |
+| DCC terminal | DCC from the track or a booster; the way round does not matter | |
 | EXP1 (10-pin) | D2 (DCC), D3, D4, D5, D6, D9, D10, D11, 5 V, GND | |
 | EXP2 (10-pin) | D12, D13, A0, A1, A2, A3, SDA, SCL, 5 V, GND; the Märklin I2C Expansion connects here | |
 
 ## Jumpers
 
-| Jumper | Closed |
-| --- | --- |
-| **5V from 7805** | The 7805 feeds the Nano's 5 V, bypassing the Nano's own small regulator |
-| **Vin from LocoNet** | The Nano's VIN gets LocoNet RailSync or the power input |
-| **i2c pullup** | 4.7 kΩ pull-ups on SDA and SCL; needed for the Märklin Keyboard bus |
-| **SCL/SDA – D5/D6** | Whether the blue terminal carries I2C or D5 and D6 |
+The jumpers are the same as on the [v2](../Arduino%20LocoNet-DCC%20Interface%20v2#jumpers), at the same place: bottom left, next to the Nano's USB socket, with their names printed on the board.
+
+### Power and pull-ups: three jumpers in a row
+
+A jumper is placed **upright**, on the two pins of one column.
+
+```text
+        5V from      Vin from      i2c
+         7805        Loconet      pullup
+        ┌─────┐      ┌─────┐      ┌─────┐
+        │  ●  │      │  ●  │      │  ●  │
+        │  ●  │      │  ●  │      │  ●  │
+        └─────┘      └─────┘      └─────┘
+```
+
+| Jumper | When it is on | Put it on when |
+| --- | --- | --- |
+| **5V from 7805** | The board's 7805 regulator powers the Nano's 5 V | The board gets its power from LocoNet or the power terminal, and the 7805 is fitted. **This is the usual setting.** |
+| **Vin from Loconet** | LocoNet's RailSync and the power terminal (each through a diode) go to the Nano's VIN pin, so the Nano's own small regulator makes the 5 V | The 7805 is **not** fitted. Use this one *or* "5V from 7805", not both |
+| **i2c pullup** | The two 4.7 kΩ pull-up resistors on SDA and SCL are connected to 5 V | I2C devices are connected that have no pull-ups of their own. **On for the Märklin I2C Expansion** (the Keyboard bus needs it) |
+
+With only the USB cable connected, the jumpers can stay as they are: a diode across the 7805 protects it.
+
+**For [Marklin-6040-LocoNet](../Marklin-6040-LocoNet):** *5V from 7805* on, *Vin from Loconet* off, *i2c pullup* on. Power the Keyboards through the expansion board's own DC-IN, not through this board.
+
+### Blue 4-pole terminal: I2C or D5/D6
+
+Two rows of three pins. The middle column goes to the blue terminal; always put **both jumpers on the same side**.
+
+```text
+  I2C on the blue terminal             D5 and D6 on the blue terminal
+
+  SCL  ●━━━●  ○  D5                    SCL  ○  ●━━━●  D5
+  SDA  ●━━━●  ○  D6                    SDA  ○  ●━━━●  D6
+```
+
+| Setting | Terminal "SCL/D5" | Terminal "SDA/D6" |
+| --- | --- | --- |
+| Both jumpers **left** | SCL (A5) | SDA (A4) |
+| Both jumpers **right** | D5 | D6 |
 
 ## To check before building more
 
