@@ -16,15 +16,16 @@ Every terminal has the same places for parts. Choose for each terminal:
 
 | Use | Fit | Leave empty |
 | --- | --- | --- |
-| **Plain connection**: an output (an LED with its own resistor, a servo signal), a push button or switch to GND, a sensor with a 5 V output | Jumper **JP** closed, or a wire bridge in its place | R, 1N4148, 1N4004, C |
-| **Protected input**: Märklin contact tracks, reed contacts, anything with long wires near the track | 1 kΩ **R**, **1N4148**, **1N4004**, **C** | JP (open) |
+| **Plain connection**: an output (an LED with its own resistor, a servo signal), a sensor with a 5 V output | Jumper **JP** closed, or a wire bridge in its place | R, 1N4148, 1N4004, C |
+| **Switch input**: a push button, toggle switch, reed contact or turnout end switch to GND | 1 kΩ **R**, **1N4148**, **1N4004**, **C** | JP (open) |
+| **3-rail feedback**: a Märklin contact track (isolated outer rail), also with a DCC command station such as the Intellibox | 1 kΩ **R**, **1N4148**, **1N4004**, **C** | JP (open) |
 | **Not used** | Nothing | Everything |
 
 Fit the **terminals** you use and the **EXP** headers for the cables you need: EXP1 for P1 to P8, EXP2 for P9 to P16. The 5V and GND terminals only when something needs power from the board.
 
-## The protected input
+## Switch input and 3-rail feedback
 
-The full circuit of one terminal, with all its parts fitted:
+Both use the same parts, and one board can have both. The full circuit of one terminal, with all its parts fitted:
 
 ```text
  Nano pin ──┬── 1 kΩ ──▶|── 1N4148 ──┬── terminal P
@@ -38,10 +39,28 @@ The full circuit of one terminal, with all its parts fitted:
 
 - The Nano pin is an input with its **internal pull-up** switched on (`pinMode(pin, INPUT_PULLUP)`).
 - **Nothing connected, or the contact open:** the pin reads **HIGH**.
-- **Terminal connected to GND** (a train on a Märklin contact track, a closed reed contact, a pressed button): current flows through the 1 kΩ and the 1N4148, and the pin reads **LOW**.
+- **Terminal connected to GND** (a pressed button, a closed reed contact): current flows through the 1 kΩ and the 1N4148, and the pin reads **LOW**.
 - **The 1N4148** keeps positive voltages on the terminal away from the Nano, for example when a wire touches the track or the 16 V lighting supply.
 - **The 1N4004** takes negative voltages on the terminal to GND.
 - **The capacitor** filters short spikes and contact bounce. Its value is not in the design; 100 nF is the usual choice.
+
+### Switch input
+
+Connect the switch between the terminal and a **GND** terminal. Closed is LOW, open is HIGH.
+
+### 3-rail feedback with the diode trick
+
+On a Märklin contact track, one outer rail is cut on both sides of the section and wired to the terminal. A train's metal wheels connect it to the other outer rail.
+
+- **With a Märklin system** (the outer rails are the track's ground, brown "0") and the board's GND connected to that ground, it works like a switch: a train pulls the terminal to GND, and the pin reads LOW.
+- **With a DCC command station or booster** (such as the Intellibox), the outer rails are not ground: they switch between 0 V and the full track voltage thousands of times a second. This is where the **diode trick** comes in:
+  - In the half where the rail is at 0 V, the 1N4148 conducts and pulls the pin LOW.
+  - In the half where the rail is at track voltage, the 1N4148 blocks, so the Nano never sees the track voltage.
+  - The capacitor holds the pin LOW until the next 0 V half, so the pin stays LOW as long as a train is on the section.
+  
+  The board's GND must share a ground with the command station; through LocoNet it normally does. Test one section with a loco before wiring the whole layout.
+
+Dirty wheels and track make the contact flicker. Let the program wait about half a second after the last LOW before it reports the section as free.
 
 **Jumper JP1 to JP16** (one per terminal, next to it) connects the Nano pin straight to the terminal, without the protection: the plain connection. Then the terminal is not protected, so never more than 5 V on it, and leave the capacitor out on outputs (it would slow down a servo signal).
 
