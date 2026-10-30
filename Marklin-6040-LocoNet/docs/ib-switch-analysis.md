@@ -288,13 +288,16 @@ The IB-Switch running (lit by test 4), the Intellibox plugged in:
 | Answers to other devices' questions | — | **Used too:** an answer after an IB-Switch's or the Intellibox's question also sets the lights of that turnout |
 | Key pressed | `OPC_SW_REQ` on | The same |
 | Coil off | On release (as tested) or after Special Option 1 | After 200 ms (`option coil`), or on release with `option coil 0` |
-| Refused | Repeats every ~3 s, saves further keys | Repeats every 3 s, up to 10 times, then the lights go back. With `option hold on` (the factory setting) a key is not sent at all while LocoNet reports power off, and its lights go back at once; `option hold off` sends it and lets the retry work as on the IB-Switch |
+| Refused | Repeats every ~3 s, saves further keys, sends them all after GO | **The same:** the command waits (up to 16, in pressing order), the oldest is repeated every 3 s, and after GPON all are sent one after another, before the lights are synced. The lights keep what was pressed. A newer key press or another device's command for the same turnout replaces a waiting one |
 | Other devices' commands | Lights follow | The same, plus `OPC_SW_REP` outputs and occupancy (`OPC_INPUT_REP`) |
 
-The deliberate difference is **`option hold`**: the IB-Switch saves keys pressed without track power and switches them all later, when GO is pressed, which can surprise someone who has forgotten them. The firmware does not send them, and shows the turnout's real position again instead.
+**Why a refused key is still sent:** the refusal (`B4 30 00`) only means the command station will not put the command on the track. The `OPC_SW_REQ` itself is already on LocoNet, so a decoder connected to LocoNet, or one with its own power supply (lights, a windmill, turnouts on a separate accessory supply), switches at once. The firmware cannot know which kind of decoder a turnout has, so it sends every key, as the IB-Switch does, and repeats the refused ones for the decoders on the track.
+
+**`option hold on`** is the choice for a layout that should not switch anything without track power: a key is then not sent at all while LocoNet reports power off, and its lights go back to the turnout's real position. That also avoids a surprise when GO is pressed long after a forgotten key press.
 
 ## Open questions
 
 - How the tested IB-Switch's Special Options 1 (coil time) and 6 (retry) were set.
+- Whether the IB-Switch's light changes at once when a key is refused (without track power), or only once the command is accepted. The firmware changes it at once.
 - What other command stations (Digitrax, DCC-EX with LocoNet, Rocrail's virtual command station) answer to `OPC_SW_STATE`, especially for a turnout they have never switched.
 - Whether the GCA101 loses messages when it sends its announcement (test 3, first run).

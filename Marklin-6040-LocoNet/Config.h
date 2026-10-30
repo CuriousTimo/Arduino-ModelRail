@@ -39,10 +39,14 @@ const bool kFactoryAutoAssign = true;
 // level (a pull-down) and at most 5 V. Terminal: `option stopgo on|off`.
 const bool kFactoryStopGo = false;
 
-// A key press while LocoNet reports track power off is not sent: the turnout cannot
-// switch, so the keyboard's lights go back to the turnout's last known position.
+// Off (the factory setting): a key is always sent, as on an IB-Switch. Without track power
+// the command station refuses it, but the command is on LocoNet all the same: decoders on
+// LocoNet or with their own power (lights, a windmill, turnouts on a separate supply)
+// switch at once, and the refused command is sent again for the decoders on the track
+// (see kRetryAfterMs). On: a key press while LocoNet reports track power off is not sent
+// at all, and the keyboard's lights go back to the turnout's last known position.
 // Terminal: `option hold on|off`.
-const bool kFactoryHoldWithoutPower = true;
+const bool kFactoryHoldWithoutPower = false;
 
 // Log every key and every LocoNet switch command on the terminal.
 // Terminal: `option log on|off`.
@@ -54,11 +58,12 @@ const bool kFactoryLog = true;
 // released instead. Terminal: `option coil <ms>`.
 const uint16_t kFactoryCoilTimeMs = 200;
 
-// When the command station refuses a switch command (LONG_ACK: its buffer is full, or
-// it is in STOP), send it again after this time, at most kRetryTries times, as an
-// IB-Switch does (its Special Option 6, also 3 s).
+// When the command station refuses a switch command (LONG_ACK: it is in STOP, or its
+// buffer is full), the command waits, up to 16 of them, oldest first, as on an IB-Switch:
+// the oldest is sent again after this time (its Special Option 6, also 3 s), and when the
+// track power goes on they are all sent, one after another. A newer key press or another
+// device switching the same turnout replaces a waiting command.
 const uint16_t kRetryAfterMs = 3000;
-const uint8_t kRetryTries = 10;
 
 // At startup and after every track power on, the lights are synced with the command
 // station: each assigned turnout's position is asked (OPC_SW_STATE), one at a time, as an

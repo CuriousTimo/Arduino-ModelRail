@@ -209,7 +209,7 @@ Type `backup`. The Nano writes its whole setup as a list of commands:
 # Marklin-6040-LocoNet 0.3.0 backup
 option auto on
 option stopgo off
-option hold on
+option hold off
 option log on
 option watchdog on
 option coil 200
@@ -231,7 +231,7 @@ Type `option` to see all settings. Most layouts never need to change them.
 | You want | Type |
 | --- | --- |
 | Give old or heavy turnout motors more time: 0.3 s instead of 0.2 s | `option coil 300` |
-| Keys may also be sent while the track power is off | `option hold off` |
+| Keys are not sent at all while the track power is off (their lights go back) | `option hold on` |
 | A quieter window: no line for every key | `option log off` |
 | The STOP and GO lines of the Märklin bus switch the LocoNet track power (only after measuring them, see "How it behaves") | `option stopgo on` |
 | Keyboards that are not set up switch nothing, instead of 16 turnouts in a row | `option auto off` |
@@ -272,8 +272,9 @@ The program's own starting values for the settings are in `Config.h`, for those 
 | Sensor lights change | `OPC_INPUT_REP` from an occupancy detector, a track contact or the Intellibox's s88 modules: red occupied, green free |
 | Press a sensor key | Nothing is sent; the lights keep showing the sensor |
 
-- **Track power off:** while LocoNet reports power off (`OPC_GPOFF`), a key is not sent and its lights go back to the turnout's last known position (`option hold`).
-- **Refused command:** when the command station answers a switch command with a refusal (`LONG_ACK`, because its buffer is full or it is in STOP), the firmware sends it again after 3 s, up to 10 times, as an IB-Switch does (its Special Option 6). If it still fails, the lights go back to the turnout's last known position. A new key press or another device switching the turnout cancels the retry.
+- **Track power off:** a key is still sent, as on an IB-Switch. The command station refuses it (it cannot reach the track), but the command is on LocoNet all the same: lights, a windmill or turnouts on a decoder connected to LocoNet, or with their own power supply, switch at once. The Keyboard's lights show what was pressed.
+- **Refused command:** a command the command station refuses (`LONG_ACK`, because it is in STOP or its buffer is full) waits, up to 16 of them in the order they were pressed. The oldest is sent again every 3 s, as an IB-Switch does (its Special Option 6). When the track power goes on, they are all sent, one after another, so the decoders on the track catch up; then the lights are synced. A newer key press, or another device switching the same turnout, replaces a waiting command.
+- **`option hold on`:** for those who want nothing switched without track power: while LocoNet reports power off (`OPC_GPOFF`), a key is not sent at all and its lights go back to the turnout's last known position. Before version 0.3.0 this was the factory setting, and a Nano that had it keeps it: type `option hold off` to change it.
 - **No command station yet:** until the command station answers the first question, the lights of the turnouts stay as the Keyboard shows them, and the firmware asks again every 3 s, as an IB-Switch does. `status` shows whether the lights match the command station.
 - **No LocoNet:** if a command cannot be sent, the lights stay as they were. For a turnout whose position is not known yet, the Keyboard gets no answer and asks again about once a second, as it does with a Märklin central in STOP.
 - **Releasing a key:** with `option coil 0` the coil goes off on the key release instead. The Keyboard's release names only the decoder (four key pairs), so the firmware then switches off the coil of the key last pressed on that decoder; the fixed coil time avoids that guess.
@@ -292,17 +293,18 @@ KEY: keyboard 1 key 3 green -> LocoNet switch 3 closed: Done
 LN: switch 17 thrown -> keyboard 2 key 1
 LN: sensor 33 occupied -> keyboard 2 key 9
 LN: track power off
-REFUSED: will send again in 3 s: switch 5 thrown
+REFUSED: sent again every 3 s and at track power on: switch 5 thrown
 RETRY: switch 5 thrown
 ```
 
 ## Tests
 
-The Keyboard message format (`Keyboard.h`) has host tests that run without an Arduino:
+The Keyboard message format (`Keyboard.h`) and the queue of refused commands (`SwitchQueue.h`) have host tests that run without an Arduino:
 
 ```sh
 cd test
 c++ -std=c++11 -Wall -Wextra -I.. keyboard_test.cpp -o keyboard_test && ./keyboard_test
+c++ -std=c++11 -Wall -Wextra -I.. switch_queue_test.cpp -o switch_queue_test && ./switch_queue_test
 ```
 
 ## Compared with an IB-Switch
@@ -314,7 +316,7 @@ c++ -std=c++11 -Wall -Wextra -I.. keyboard_test.cpp -o keyboard_test && ./keyboa
 | Lights at power-up | Asks the command station each turnout's position | The same, and again every time the track power goes on |
 | Lights follow other devices | Yes | Yes |
 | Coil time | Special Option 1, 200 ms | `option coil`, 200 ms |
-| Retry after a refusal | Special Option 6, about 3 s; keys pressed meanwhile are saved and switched later | 3 s, up to 10 times; without track power a key is not sent at all (`option hold`) |
+| Without track power | The key is sent; refused commands wait and are repeated (Special Option 6, about 3 s), then switched after GO | The same: up to 16 wait, repeated every 3 s, all sent after GO. `option hold on` sends nothing instead |
 | Occupancy display | No | `sensor` |
 | Sensors that press a key | Yes | Not yet |
 | Routes | 40 × 20 steps, pauses, sub-routes, blocking | Not yet |

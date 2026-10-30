@@ -32,10 +32,12 @@ jobs:
           arduino-cli core update-index
           arduino-cli core install arduino:avr@1.8.6
           arduino-cli lib install LocoNet@1.1.13
-      - name: Host tests of the Keyboard message format
+      - name: Host tests of the Keyboard message format and the refused-command queue
         run: |
           c++ -std=c++11 -Wall -Wextra -I Marklin-6040-LocoNet Marklin-6040-LocoNet/test/keyboard_test.cpp -o keyboard_test
           ./keyboard_test
+          c++ -std=c++11 -Wall -Wextra -I Marklin-6040-LocoNet Marklin-6040-LocoNet/test/switch_queue_test.cpp -o switch_queue_test
+          ./switch_queue_test
       - name: Compile for the Arduino Nano
         run: arduino-cli compile --fqbn arduino:avr:nano --warnings all --output-dir out Marklin-6040-LocoNet
       - name: Name the firmware file

@@ -16,6 +16,7 @@
 #include "KeyMap.h"
 #include "Keyboard.h"
 #include "Settings.h"
+#include "SwitchQueue.h"
 
 // Why the Nano started, saved before anything else runs; a watchdog restart leaves the
 // watchdog running, so it is switched off here first.
@@ -69,18 +70,12 @@ struct CoilOff {
 const uint8_t kCoilOffSlots = 8;
 CoilOff coilOffs[kCoilOffSlots];
 
-// A coil-on this node sent, with what the lights showed before, for a refusal.
-struct SwitchCommand {
-  uint16_t address;
-  bool green;
-  bool previousKnown;
-  bool previousGreen;
-  uint8_t tries;
-};
+using switchqueue::Command;
 
 // The last coil-on this node sent: a LONG_ACK refusal right after it is its answer.
-SwitchCommand lastSent;
+Command lastSent;
 bool lastSentValid = false;
+bool lastSentWasRetry = false;
 uint32_t lastSentAt = 0;
 const uint16_t kRefusalWindowMs = 250;
 
@@ -99,14 +94,9 @@ uint32_t questionAt = 0;
 // thrown (0x50), as the Intellibox answers and JMRI reads it.
 const uint8_t kSwStateClosed = 0x20;
 
-// Refused commands waiting to be sent again.
-struct Retry {
-  SwitchCommand command;
-  bool waiting;
-  uint32_t due;
-};
-const uint8_t kRetrySlots = 4;
-Retry retries[kRetrySlots];
+// Refused commands waiting to be sent again, oldest first, as an IB-Switch keeps them.
+switchqueue::Queue refused;
+uint32_t retryDue = 0;  // when to send the oldest again
 
 /// Whether a time from millis() has come; safe across its overflow.
 bool reached(uint32_t due) { return (int32_t)(millis() - due) >= 0; }
@@ -390,9 +380,10 @@ void logSwitch(const __FlashStringHelper* what, uint16_t address, bool green) {
   Serial.println(green ? F(" closed") : F(" thrown"));
 }
 
-/// Schedules the coil-off for a coil-on just sent. A newer coil-on for the same turnout
-/// replaces the waiting one; when every slot is taken, the oldest is sent early.
-void scheduleCoilOff(uint16_t address, bool green) {
+/// Schedules the coil-off for a coil-on just sent, `coilTime` ms later. A newer coil-on for
+/// the same turnout replaces the waiting one; when every slot is taken, the oldest is sent
+/// early.
+void scheduleCoilOff(uint16_t address, bool green, uint32_t coilTime) {
   uint8_t slot = kCoilOffSlots;
   uint8_t earliest = 0;
   for (uint8_t i = 0; i < kCoilOffSlots; i++) {
@@ -411,7 +402,6 @@ void scheduleCoilOff(uint16_t address, bool green) {
     slot = earliest;
     LocoNet.requestSwitch(coilOffs[slot].address, 0, coilOffs[slot].green ? 1 : 0);
   }
-  uint32_t coilTime = (uint32_t)settings::options().coilTime * settings::kCoilTimeStep;
   coilOffs[slot] = {address, green, true, millis() + coilTime};
 }
 
@@ -433,81 +423,74 @@ void handleCoilOffs() {
   }
 }
 
-/// Sends a coil-on and, with a coil time, schedules its coil-off.
-LN_STATUS switchOn(const SwitchCommand& command) {
+/// Sends a coil-on and schedules its coil-off: after the coil time, or for a command sent
+/// again (its key was released long ago) after the factory coil time when the coil
+/// goes off on release.
+LN_STATUS switchOn(const Command& command, bool retry) {
   // LocoNet's direction bit set is closed/green (LocoNet PE, JMRI); the LocoNet
   // library's header comment has it the other way round.
   LN_STATUS status = LocoNet.requestSwitch(command.address, 1, command.green ? 1 : 0);
   if (status == LN_DONE) {
     lastSent = command;
     lastSentValid = true;
+    lastSentWasRetry = retry;
     lastSentAt = millis();
-    if (settings::options().coilTime > 0) {
-      scheduleCoilOff(command.address, command.green);
+    uint32_t coilTime = (uint32_t)settings::options().coilTime * settings::kCoilTimeStep;
+    if (coilTime == 0 && retry) {
+      coilTime = kFactoryCoilTimeMs;
+    }
+    if (coilTime > 0) {
+      scheduleCoilOff(command.address, command.green, coilTime);
     }
   }
   return status;
 }
 
-void cancelRetry(uint16_t address) {
-  for (uint8_t i = 0; i < kRetrySlots; i++) {
-    if (retries[i].waiting && retries[i].command.address == address) {
-      retries[i].waiting = false;
-    }
-  }
-}
+/// Drops a refused command waiting for this turnout: a newer key press or another device
+/// switched it since.
+void cancelRetry(uint16_t address) { refused.remove(address); }
 
-uint8_t showEntry(uint16_t entry, bool green);
-
-/// Gives up on a command: its lights go back to what they showed before.
-void giveUp(const SwitchCommand& command) {
-  logSwitch(F("REFUSED: gave up on switch "), command.address, command.green);
-  if (command.previousKnown) {
-    showEntry(command.address, command.previousGreen);
-  }
-}
-
-/// The command station refused a switch command (LONG_ACK 0 for OPC_SW_REQ): its buffer
-/// is full or it is in STOP. Ours, if we sent one just before: try again later.
+/// The command station refused a switch command (LONG_ACK 0 for OPC_SW_REQ): it is in STOP
+/// or its buffer is full. Ours, if we sent one just before. The command was on LocoNet all
+/// the same, so a decoder on LocoNet or with its own power has switched; the lights keep
+/// what was pressed. The command waits to be sent again, for the decoders on the track.
 void handleRefusal() {
   if (!lastSentValid || millis() - lastSentAt > kRefusalWindowMs) {
     return;  // another device's command
   }
   lastSentValid = false;
-  SwitchCommand command = lastSent;
+  Command command = lastSent;
   cancelCoilOff(command.address);
-  if (++command.tries >= kRetryTries) {
-    giveUp(command);
-    return;
+  // A command sent again keeps its place; a new one waits behind the others.
+  bool kept = lastSentWasRetry ? refused.pushFront(command) : refused.pushBack(command);
+  retryDue = millis() + kRetryAfterMs;
+  if (!kept && logging()) {
+    Serial.println(F("REFUSED: more than 16 commands waiting; one is dropped"));
   }
-  cancelRetry(command.address);
-  for (uint8_t i = 0; i < kRetrySlots; i++) {
-    if (!retries[i].waiting) {
-      retries[i] = {command, true, millis() + kRetryAfterMs};
-      logSwitch(F("REFUSED: will send again in 3 s: switch "), command.address, command.green);
-      return;
-    }
+  if (!lastSentWasRetry) {
+    logSwitch(F("REFUSED: sent again every 3 s and at track power on: switch "), command.address,
+              command.green);
   }
-  giveUp(command);  // every retry slot is taken
 }
 
-/// Sends refused commands again once their time has come.
+/// Sends the oldest refused command again: every 3 s while the command station refuses,
+/// and one after another once it takes them (after track power on at once).
 void handleRetries() {
-  for (uint8_t i = 0; i < kRetrySlots; i++) {
-    if (!retries[i].waiting || !reached(retries[i].due)) {
-      continue;
-    }
-    retries[i].waiting = false;
-    SwitchCommand command = retries[i].command;
-    logSwitch(F("RETRY: switch "), command.address, command.green);
-    if (switchOn(command) != LN_DONE) {
-      if (++command.tries >= kRetryTries) {
-        giveUp(command);
-      } else {
-        retries[i] = {command, true, millis() + kRetryAfterMs};
-      }
-    }
+  if (refused.empty() || !reached(retryDue)) {
+    return;
   }
+  if (lastSentValid && millis() - lastSentAt <= kRefusalWindowMs) {
+    return;  // the answer to the last command may still come
+  }
+  Command command = refused.popFront();
+  if (switchOn(command, true) != LN_DONE) {
+    refused.pushFront(command);  // LocoNet is busy: shortly
+    retryDue = millis() + kRefusalWindowMs;
+    return;
+  }
+  logSwitch(F("RETRY: switch "), command.address, command.green);
+  // The next one once this one was not refused.
+  retryDue = millis() + kRefusalWindowMs + 1;
 }
 
 void logKey(uint8_t keyboardNumber, uint8_t keyPair, bool green, uint16_t address) {
@@ -559,8 +542,7 @@ void handleKeyPress(uint8_t keyboardNumber, uint8_t data) {
     return;
   }
   cancelRetry(address);  // a new key press replaces a waiting retry
-  SwitchCommand command = {address, green, isSet(lightKnown, key), isSet(lightGreen, key), 0};
-  LN_STATUS status = switchOn(command);
+  LN_STATUS status = switchOn({address, green}, false);
   if (logging()) {
     Serial.print(F(": "));
     Serial.println(LocoNet.getStatusStr(status));
@@ -879,6 +861,8 @@ void printStatus() {
   Serial.print(stats->TxPackets);
   Serial.print(F(", collisions: "));
   Serial.println(stats->Collisions);
+  Serial.print(F("Refused switch commands waiting: "));
+  Serial.println(refused.size());
   Serial.print(F("Turnout positions: "));
   Serial.println(!syncActive      ? F("synced with the command station")
                  : syncUnanswered ? F("no command station answers yet; asking every 3 s")
@@ -1343,7 +1327,10 @@ void notifyLongAck(uint8_t d1, uint8_t d2) {
 // Called for OPC_GPON and OPC_GPOFF.
 void notifyPower(uint8_t state) {
   if (state) {
-    startSync(kSyncAfterPowerOnMs);  // turnouts may have changed while power was off
+    // First the refused commands, one after another, then the lights are synced; each
+    // command takes kRefusalWindowMs.
+    retryDue = millis();
+    startSync(kSyncAfterPowerOnMs + refused.size() * (kRefusalWindowMs + 50));
   }
   trackPower = state ? TrackPower::On : TrackPower::Off;
   if (logging()) {
