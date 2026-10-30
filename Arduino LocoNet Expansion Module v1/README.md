@@ -1,6 +1,8 @@
 # Arduino LocoNet Expansion Module v1
 
-Sixteen protected inputs for the [Arduino Nano LocoNet & DCC Interface v3](../Arduino%20LocoNet-DCC%20Interface%20v3) (or a v2 with the [v2 Expansion Adapter](../Arduino%20LocoNet-DCC%20v2%20Expansion%20Adapter)). It connects with two 10-pin flat cables to **EXP1** and **EXP2** and brings sixteen Nano pins out to screw terminals, **P1 to P16**, for example for Märklin contact tracks, reed contacts or push buttons.
+A general-purpose expansion for the [Arduino Nano LocoNet & DCC Interface v3](../Arduino%20LocoNet-DCC%20Interface%20v3) (or a v2 with the [v2 Expansion Adapter](../Arduino%20LocoNet-DCC%20v2%20Expansion%20Adapter)). It connects with two 10-pin flat cables to **EXP1** and **EXP2** and brings sixteen Nano pins out to screw terminals, **P1 to P16**, plus 5 V and GND terminals.
+
+The board is made for different setups: **you only fit the parts your project needs**, chosen per terminal. A terminal can be a plain connection to the Nano pin (for an output, a button, a servo signal) or a protected input (for Märklin contact tracks or reed contacts), and one board can mix both.
 
 Designed in EAGLE 9.6.2: the schematic and the board are in [`Eagle/`](Eagle), the Gerber files (31 January 2021) for ordering the board in [`Gerber/`](Gerber). Board 65.7 × 83.8 mm, two layers, through-hole parts only.
 
@@ -8,9 +10,21 @@ Designed in EAGLE 9.6.2: the schematic and the board are in [`Eagle/`](Eagle), t
 
 *The board from above, drawn from the EAGLE file: red tracks on top, blue underneath, green pads, grey the printing on the board.*
 
-## How an input works
+## Fitting the board for your task
 
-Each of the sixteen inputs has the same small circuit:
+Every terminal has the same places for parts. Choose for each terminal:
+
+| Use | Fit | Leave empty |
+| --- | --- | --- |
+| **Plain connection**: an output (an LED with its own resistor, a servo signal), a push button or switch to GND, a sensor with a 5 V output | Jumper **JP** closed, or a wire bridge in its place | R, 1N4148, 1N4004, C |
+| **Protected input**: Märklin contact tracks, reed contacts, anything with long wires near the track | 1 kΩ **R**, **1N4148**, **1N4004**, **C** | JP (open) |
+| **Not used** | Nothing | Everything |
+
+Fit the **terminals** you use and the **EXP** headers for the cables you need: EXP1 for P1 to P8, EXP2 for P9 to P16. The 5V and GND terminals only when something needs power from the board.
+
+## The protected input
+
+The full circuit of one terminal, with all its parts fitted:
 
 ```text
  Nano pin ──┬── 1 kΩ ──▶|── 1N4148 ──┬── terminal P
@@ -29,7 +43,7 @@ Each of the sixteen inputs has the same small circuit:
 - **The 1N4004** takes negative voltages on the terminal to GND.
 - **The capacitor** filters short spikes and contact bounce. Its value is not in the design; 100 nF is the usual choice.
 
-**Jumper JP1 to JP16** (one per input, next to its terminal) connects the Nano pin straight to the terminal, without the protection. Close it only to use that pin as an **output** (an LED with its own resistor, a servo signal) or as an analog input. With the jumper closed, the terminal is not protected: never more than 5 V on it.
+**Jumper JP1 to JP16** (one per terminal, next to it) connects the Nano pin straight to the terminal, without the protection: the plain connection. Then the terminal is not protected, so never more than 5 V on it, and leave the capacitor out on outputs (it would slow down a servo signal).
 
 ## Terminals and Nano pins
 
@@ -59,17 +73,26 @@ D0, D1 (USB) and D7, D8 (LocoNet) are not on the flat cables.
 
 ## Parts list
 
+Fit only what you need (see [Fitting the board for your task](#fitting-the-board-for-your-task)). Per terminal:
+
+| Part | Value | For |
+| --- | --- | --- |
+| R | 1 kΩ | Protected input |
+| D (small glass diode) | 1N4148 | Protected input |
+| D (larger black diode) | 1N4004 | Protected input |
+| C | 100 nF (value not in the design), 5 mm pin spacing | Protected input |
+| JP | 2-pin header and a jumper, or a wire bridge | Plain connection |
+
+For the board:
+
 | Part | Value | Number |
 | --- | --- | --- |
-| R1 to R16 | 1 kΩ | 16 |
-| D1, D3, D5, … (the small glass diodes) | 1N4148 | 16 |
-| D2, D4, D6, … (the larger black diodes) | 1N4004 | 16 |
-| C1 to C16 | 100 nF (value not in the design), 5 mm pin spacing | 16 |
-| JP1 to JP16 | 2-pin header and a jumper, only for the inputs used as outputs | 16 |
-| PORT1 to PORT8 | 2-pole terminal, 5.08 mm (each holds two inputs) | 8 |
-| 5V-L, 5V-R, GND-L, GND-R | 2-pole terminal, 5.08 mm | 4 |
-| EXP1, EXP2 | 10-pin boxed header (2 × 5, 2.54 mm) | 2 |
-| | 10-pin flat cable with two connectors | 2 |
+| PORT1 to PORT8 | 2-pole terminal, 5.08 mm (each holds two terminals, for example P1 and P2) | 1 to 8, as needed |
+| 5V-L, 5V-R, GND-L, GND-R | 2-pole terminal, 5.08 mm | As needed |
+| EXP1, EXP2 | 10-pin boxed header (2 × 5, 2.54 mm) | 1 or 2 |
+| | 10-pin flat cable with two connectors | 1 or 2 |
+
+A board with all sixteen protected inputs needs 16 of each: R1 to R16, sixteen 1N4148, sixteen 1N4004 and C1 to C16.
 
 ## Software
 

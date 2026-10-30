@@ -24,7 +24,7 @@ Designed in EAGLE 9.6.2: the schematic and the board are in [`Eagle/`](Eagle). B
 | EXP1 (10-pin) | D2 (DCC), D3, D4, D5, D6, D9, D10, D11, 5 V, GND | |
 | EXP2 (10-pin) | D12, D13, A0, A1, A2, A3, SDA, SCL, 5 V, GND; the Märklin I2C Expansion connects here | |
 
-Expansion boards for EXP1 and EXP2: the [Märklin I2C Expansion v1](../Marklin%20I2C%20Expansion%20v1) and the [Expansion Module v1](../Arduino%20LocoNet%20Expansion%20Module%20v1) (16 protected inputs).
+Expansion boards for EXP1 and EXP2: the [Märklin I2C Expansion v1](../Marklin%20I2C%20Expansion%20v1) and the [Expansion Module v1](../Arduino%20LocoNet%20Expansion%20Module%20v1) (16 terminals, as protected inputs or plain connections).
 
 ## Jumpers
 
